@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/__tests__/camera.test.ts","./src/__tests__/coordinate.test.ts","./src/app/app.tsx","./src/ui/debughud.tsx","./src/ui/vttviewport.tsx","./src/vtt/engine/camera.ts","./src/vtt/engine/coordinatesystem.ts","./src/vtt/engine/vttengine.ts","./src/vtt/renderer/gridrenderer.ts"],"version":"5.9.3"}
