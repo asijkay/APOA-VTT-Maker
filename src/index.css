@@ -33,7 +33,8 @@ body,
   display: block;
   width: 100%;
   height: 100%;
-  cursor: grab;
+  cursor: crosshair;
+  touch-action: none;
 }
 
 .viewport-host canvas.panning {
@@ -55,6 +56,7 @@ body,
   pointer-events: none;
   backdrop-filter: blur(6px);
   min-width: 200px;
+  z-index: 5;
 }
 
 .debug-hud .row {
@@ -69,4 +71,94 @@ body,
 
 .debug-hud .value {
   color: #f1f5f9;
+}
+
+.toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(18, 22, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  min-width: 160px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #1b2029;
+  color: #d6dbe2;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  transition:
+    background 90ms ease-out,
+    border-color 90ms ease-out,
+    transform 80ms ease-out;
+}
+
+.tool-btn:hover:not(.is-disabled) {
+  background: #232933;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.tool-btn.is-active {
+  background: #3865a5;
+  border-color: #5aa3d9;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(90, 163, 217, 0.22);
+}
+
+.tool-btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tool-hotkey {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #9aa4b2;
+}
+
+.tool-btn.is-active .tool-hotkey {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.toolbar-hint {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #8a95a5;
+  line-height: 1.4;
+}
+
+.toolbar-hint kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #2a313c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d6dbe2;
 }
