@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Project design doc (contract only, local to repo)
+AGENTS.md
+
+# TypeScript build caches
+*.tsbuildinfo
