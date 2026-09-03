@@ -2,6 +2,7 @@ import type { EditorTool } from '../../scene/SceneTypes';
 import { cellCenter } from './PaintTools';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import { worldToGrid } from '../../engine/CoordinateSystem';
+import { opAddToken } from '../../scene/UndoManager';
 
 export class TokenTool implements EditorToolController {
   readonly id: EditorTool = 'token';
@@ -19,11 +20,11 @@ export class TokenTool implements EditorToolController {
 
   onPointer(e: ToolPointerEvent): void {
     if (!this.ctx) return;
-    const { preview, scene } = this.ctx;
+    const { preview } = this.ctx;
     const g = worldToGrid({ x: e.worldX, y: e.worldY });
     if (e.type === 'pointerdown' && e.button === 0) {
       const center = cellCenter(g.gx, g.gy);
-      scene.addToken({ x: center.x, y: center.y, elevation: 0 });
+      this.ctx.undoManager.execute(opAddToken({ x: center.x, y: center.y, elevation: 0 }));
       preview.clear();
       this.lastCell = null;
       return;

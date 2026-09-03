@@ -7,12 +7,16 @@ import { DoorRenderer } from '../renderer/DoorRenderer';
 import { LightRenderer } from '../renderer/LightRenderer';
 import { TokenRenderer } from '../renderer/TokenRenderer';
 import { VisionRenderer } from '../renderer/VisionRenderer';
+import { WindowRenderer } from '../renderer/WindowRenderer';
+import { FogRenderer } from '../renderer/FogRenderer';
 import { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
 import { SceneStore } from '../scene/SceneStore';
 import { ZOOM_STEP } from './CoordinateSystem';
 import { EditorController } from '../editor/EditorController';
 import { computeAllVision } from '../systems/VisionSystem';
 import { computeAllLighting } from '../systems/LightingSystem';
+import { FogSystem } from '../systems/FogSystem';
+import { PersistenceService } from '../scene/PersistenceService';
 import type { EditorTool } from '../scene/SceneTypes';
 
 export type DebugStats = {
@@ -42,12 +46,16 @@ export class VttEngine {
   private floorRenderer: FloorRenderer;
   private wallRenderer: WallRenderer;
   private doorRenderer: DoorRenderer;
+  private windowRenderer: WindowRenderer;
   private lightRenderer: LightRenderer;
   private tokenRenderer: TokenRenderer;
   private visionRenderer: VisionRenderer;
+  private fogRenderer: FogRenderer;
   private previewRenderer: EditorPreviewRenderer;
   private editor: EditorController;
-
+  private fogSystem: FogSystem;
+  private viewMode: 'gm' | 'player' = 'gm';
+  private autoSaveThrottle: ReturnType<typeof setTimeout> | null = null;
   private mouseWorld: { x: number; y: number } = { x: 0, y: 0 };
 
   private onDebugUpdate?: (stats: DebugStats) => void;
@@ -83,6 +91,8 @@ export class VttEngine {
     this.floorRenderer.getContainer().zIndex = 3;
     this.wallRenderer = new WallRenderer(this.stageRoot);
     this.wallRenderer.getContainer().zIndex = 5;
+    this.windowRenderer = new WindowRenderer(this.stageRoot);
+    this.windowRenderer.getContainer().zIndex = 55;
     this.doorRenderer = new DoorRenderer(this.stageRoot);
     this.doorRenderer.getContainer().zIndex = 6;
     this.lightRenderer = new LightRenderer(this.stageRoot);
@@ -91,10 +101,13 @@ export class VttEngine {
     this.tokenRenderer.getContainer().zIndex = 8;
     this.visionRenderer = new VisionRenderer(this.stageRoot);
     this.visionRenderer.getContainer().zIndex = 9;
+    this.fogRenderer = new FogRenderer(this.stageRoot);
+    this.fogRenderer.getContainer().zIndex = 85;
     this.previewRenderer = new EditorPreviewRenderer(this.stageRoot);
     this.previewRenderer.getContainer().zIndex = 10;
     this.previewRenderer.setCamera(this.camera);
     this.gridRenderer = new GridRenderer(this.stageRoot);
+    this.fogSystem = new FogSystem();
 
     this.editor = new EditorController({
       camera: this.camera,
@@ -104,6 +117,7 @@ export class VttEngine {
       onSelectionChange: (id) => {
         this.wallRenderer.setSelection(id);
         this.doorRenderer.setSelection(id);
+        this.windowRenderer.setSelection(id);
         this.lightRenderer.setSelection(id);
         this.tokenRenderer.setSelection(id);
         options.onSelectionChange?.(id);
@@ -114,10 +128,13 @@ export class VttEngine {
       this.floorRenderer.markDirty();
       this.wallRenderer.markDirty();
       this.doorRenderer.markDirty();
+      this.windowRenderer.markDirty();
       this.lightRenderer.markDirty();
       this.tokenRenderer.markDirty();
       this.visionRenderer.markDirty();
+      this.fogRenderer.markDirty();
       options.onSceneChange?.();
+      this.scheduleAutoSave();
     });
 
     this.handleWheelBound = (e) => this.handleWheel(e);
@@ -145,7 +162,11 @@ export class VttEngine {
       roundPixels: true,
     });
     options.container.appendChild(app.canvas);
-    return new VttEngine(app, options);
+    const engine = new VttEngine(app, options);
+    // Auto-load previously saved scene
+    const saved = PersistenceService.loadFromLocalStorage();
+    if (saved) engine.loadScene(saved);
+    return engine;
   }
 
   getCamera(): Camera {
@@ -172,6 +193,57 @@ export class VttEngine {
       this.wallRenderer.setDebugMode(opts.showCollision);
     }
     this.renderFrame();
+  }
+
+  /** Undo the last user action. Returns true if something was undone. */
+  undo(): boolean {
+    const result = this.editor.getUndoManager().undo();
+    if (result) this.renderFrame();
+    return result;
+  }
+
+  /** Redo the last undone action. Returns true if something was redone. */
+  redo(): boolean {
+    const result = this.editor.getUndoManager().redo();
+    if (result) this.renderFrame();
+    return result;
+  }
+
+  /**
+   * GM / Player view mode.
+   * In GM mode, fog of war is hidden.
+   * In Player mode, fog of war is shown.
+   */
+  setViewMode(mode: 'gm' | 'player'): void {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    this.fogRenderer.setVisible(mode === 'player');
+    this.renderFrame();
+  }
+
+  getViewMode(): 'gm' | 'player' {
+    return this.viewMode;
+  }
+
+  /**
+   * Replace the entire scene (e.g., after loading from file).
+   * Clears the undo history.
+   */
+  loadScene(scene: import('../scene/SceneTypes').Scene): void {
+    this.editor.getUndoManager().clear();
+    this.fogSystem.reset();
+    this.sceneStore.replace(scene);
+  }
+
+  /** Exports the current scene as a downloadable JSON file. */
+  saveToFile(): void {
+    PersistenceService.exportToFile(this.sceneStore.serialize());
+  }
+
+  /** Opens a file picker to import a scene from a JSON file. */
+  async loadFromFile(): Promise<void> {
+    const scene = await PersistenceService.importFromFile();
+    if (scene) this.loadScene(scene);
   }
 
   getDebugStats(): DebugStats {
@@ -364,10 +436,18 @@ export class VttEngine {
     this.tokenRenderer.setSelection(selectionId);
     this.wallRenderer.setSelection(selectionId);
     this.doorRenderer.setSelection(selectionId);
+    this.windowRenderer.setSelection(selectionId);
     
     // Compute vision polygons
     const visionResults = computeAllVision(snapshot);
     this.visionRenderer.setVisionResults(visionResults);
+    
+    // Update fog system
+    this.fogSystem.update(visionResults);
+    this.fogRenderer.updateCells(
+      this.fogSystem.getRevealedCells(),
+      this.fogSystem.getCurrentlyVisibleCells(),
+    );
     
     // Compute lighting polygons
     const lightResults = computeAllLighting(snapshot);
@@ -375,10 +455,12 @@ export class VttEngine {
     
     this.floorRenderer.update(snapshot, this.camera);
     this.wallRenderer.update(snapshot, this.camera, selectionId);
+    this.windowRenderer.update(snapshot, this.camera, selectionId);
     this.doorRenderer.update(snapshot, this.camera, selectionId);
     this.lightRenderer.update(snapshot, this.camera, selectionId);
     this.tokenRenderer.update(snapshot, this.camera, selectionId);
     this.visionRenderer.update(this.camera);
+    this.fogRenderer.update(this.camera);
   }
 
   private emitDebug(): void {
@@ -386,7 +468,16 @@ export class VttEngine {
     this.onDebugUpdate(this.getDebugStats());
   }
 
+  private scheduleAutoSave(): void {
+    if (this.autoSaveThrottle !== null) clearTimeout(this.autoSaveThrottle);
+    this.autoSaveThrottle = setTimeout(() => {
+      PersistenceService.saveToLocalStorage(this.sceneStore.serialize());
+      this.autoSaveThrottle = null;
+    }, 1000);
+  }
+
   destroy(): void {
+    if (this.autoSaveThrottle !== null) clearTimeout(this.autoSaveThrottle);
     this.app.renderer.off('resize', this.handleResizeBound);
 
     const canvas = this.getCanvas();
@@ -402,8 +493,10 @@ export class VttEngine {
 
     this.editor.destroy();
     this.previewRenderer.destroy();
+    this.fogRenderer.destroy();
     this.visionRenderer.destroy();
     this.lightRenderer.destroy();
+    this.windowRenderer.destroy();
     this.doorRenderer.destroy();
     this.tokenRenderer.destroy();
     this.wallRenderer.destroy();

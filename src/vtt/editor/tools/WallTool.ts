@@ -2,6 +2,7 @@ import { snapWorldToGrid } from '../../engine/CoordinateSystem';
 import type { EditorTool } from '../../scene/SceneTypes';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import type { PreviewWallSegment } from '../../renderer/EditorPreviewRenderer';
+import { opAddWall } from '../../scene/UndoManager';
 
 export function snapToGridIntersection(wx: number, wy: number): { x: number; y: number } {
   return snapWorldToGrid({ x: wx, y: wy });
@@ -59,7 +60,7 @@ export class WallTool implements EditorToolController {
 
   onPointer(e: ToolPointerEvent): void {
     if (!this.ctx) return;
-    const { preview, scene } = this.ctx;
+    const { preview } = this.ctx;
 
     if (e.type === 'pointerdown') {
       this.dragging = true;
@@ -101,7 +102,7 @@ export class WallTool implements EditorToolController {
           e.worldY,
         );
         if (seg.valid) {
-          scene.addWall({
+          this.ctx.undoManager.execute(opAddWall({
             x1: seg.x1,
             y1: seg.y1,
             x2: seg.x2,
@@ -109,7 +110,7 @@ export class WallTool implements EditorToolController {
             elevation: 0,
             blocksVision: true,
             blocksMovement: true,
-          });
+          }));
         }
       }
       this.dragging = false;

@@ -1,5 +1,6 @@
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import type { EditorTool } from '../../scene/SceneTypes';
+import { opRemoveLight } from '../../scene/UndoManager';
 
 export class LightTool implements EditorToolController {
   id: EditorTool = 'light';
@@ -18,7 +19,7 @@ export class LightTool implements EditorToolController {
   onPointer(e: ToolPointerEvent): void {
     if (!this.ctx) return;
 
-    const { scene, selection } = this.ctx;
+    const { selection } = this.ctx;
 
     switch (e.type) {
       case 'pointerdown':
@@ -31,15 +32,17 @@ export class LightTool implements EditorToolController {
             selection.set(light.id);
           } else {
             // Place new light
-            const result = scene.addLight({
-              x: e.worldX,
-              y: e.worldY,
-              color: '#FFFFFF',
-              radius: 150,
+            let createdId: string | undefined;
+            this.ctx.undoManager.execute({
+              label: 'Add Light',
+              apply(store) {
+                createdId = store.addLight({ x: e.worldX, y: e.worldY, color: '#FFFFFF', radius: 150 }).id;
+              },
+              inverse(store) { if (createdId) store.removeLight(createdId); },
             });
-            if (result) {
-              this.selectedLightId = result.id;
-              selection.set(result.id);
+            if (createdId) {
+              this.selectedLightId = createdId;
+              selection.set(createdId);
             }
           }
         }
@@ -63,12 +66,14 @@ export class LightTool implements EditorToolController {
 
     switch (e.key) {
       case 'Delete':
-      case 'Backspace':
-        scene.removeLight(this.selectedLightId);
+      case 'Backspace': {
+        const id = this.selectedLightId;
+        this.ctx.undoManager.execute(opRemoveLight(id, { x: light.x, y: light.y, color: light.color, radius: light.radius, enabled: light.enabled }));
         this.selectedLightId = null;
         this.ctx.selection.set(null);
         e.preventDefault();
         break;
+      }
       case ' ':
       case 'Enter':
         // Toggle light enabled state

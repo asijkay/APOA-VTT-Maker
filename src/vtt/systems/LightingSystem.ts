@@ -48,8 +48,8 @@ function getLightOcclusionSegments(scene: Scene) {
   for (const wall of scene.walls) {
     if (!wall.blocksVision) continue; // Walls that don't block vision also don't block light
     
-    // Get effective segments considering doors (same logic as vision)
-    const wallSegments = getEffectiveVisionSegments(wall, scene.doors);
+    // Get effective segments considering doors and windows (windows pass light)
+    const wallSegments = getEffectiveVisionSegments(wall, scene.doors, scene.windows);
     segments.push(...wallSegments);
   }
   

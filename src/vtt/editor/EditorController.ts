@@ -9,7 +9,9 @@ import { WallTool } from './tools/WallTool';
 import { DoorTool } from './tools/DoorTool';
 import { LightTool } from './tools/LightTool';
 import { TokenTool } from './tools/TokenTool';
+import { WindowTool } from './tools/WindowTool';
 import { SelectionState, type SelectionListener } from './SelectionState';
+import { UndoManager, opRemoveWall, opRemoveToken } from '../scene/UndoManager';
 
 export type EditorControllerOpts = {
   camera: Camera;
@@ -28,6 +30,7 @@ export class EditorController {
   private scene: SceneStore;
   private preview: EditorPreviewRenderer;
   private selection: SelectionState;
+  private undoManager: UndoManager;
   private tools: Map<EditorTool, EditorToolController>;
   private activeToolId: EditorTool = 'select';
   private activeTool: EditorToolController;
@@ -44,6 +47,7 @@ export class EditorController {
     this.scene = opts.scene;
     this.preview = opts.preview;
     this.selection = new SelectionState();
+    this.undoManager = new UndoManager(opts.scene);
     this.onActiveToolChange = opts.onActiveToolChange;
     if (opts.onSelectionChange) {
       this.selection.subscribe(opts.onSelectionChange);
@@ -55,6 +59,7 @@ export class EditorController {
     this.registerTool(new EraseFloorTool());
     this.registerTool(new WallTool());
     this.registerTool(new DoorTool());
+    this.registerTool(new WindowTool());
     this.registerTool(new LightTool());
     this.registerTool(new TokenTool());
 
@@ -63,6 +68,7 @@ export class EditorController {
     this.ctx = {
       camera: this.camera,
       scene: this.scene,
+      undoManager: this.undoManager,
       preview: this.preview,
       selection: this.selection,
       world: {
@@ -205,6 +211,10 @@ export class EditorController {
     return this.selection.get();
   }
 
+  getUndoManager(): UndoManager {
+    return this.undoManager;
+  }
+
   private buildEvent(
     type: ToolPointerEvent['type'],
     e: {
@@ -299,12 +309,16 @@ export class EditorController {
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const sel = this.selection.get();
       if (sel) {
-        if (this.scene.removeWall(sel)) {
+        const wall = this.scene.findWallById(sel);
+        if (wall) {
+          this.undoManager.execute(opRemoveWall(sel, { x1: wall.x1, y1: wall.y1, x2: wall.x2, y2: wall.y2, blocksVision: wall.blocksVision, blocksMovement: wall.blocksMovement }));
           this.selection.set(null);
           e.preventDefault();
           return;
         }
-        if (this.scene.removeToken(sel)) {
+        const token = this.scene.findTokenById(sel);
+        if (token) {
+          this.undoManager.execute(opRemoveToken(sel, { x: token.x, y: token.y, radius: token.radius, visionRadius: token.visionRadius }));
           this.selection.set(null);
           e.preventDefault();
           return;
@@ -326,6 +340,9 @@ export class EditorController {
         break;
       case 'd':
         this.setActiveTool('door');
+        break;
+      case 'i':
+        this.setActiveTool('window');
         break;
       case 'l':
         this.setActiveTool('light');

@@ -17,6 +17,9 @@ export type SceneChange = {
     | 'add-door'
     | 'update-door'
     | 'remove-door'
+    | 'add-window'
+    | 'update-window'
+    | 'remove-window'
     | 'add-light'
     | 'update-light'
     | 'remove-light'
@@ -61,6 +64,12 @@ export type DoorInput = {
   state?: 'open' | 'closed';
   locked?: boolean;
   hidden?: boolean;
+};
+
+export type WindowInput = {
+  wallId: ID;
+  position: number;
+  width?: number;
 };
 
 export type LightInput = {
@@ -395,5 +404,60 @@ export class SceneStore {
 
   findLightById(id: ID): import('./SceneTypes').Light | undefined {
     return this.scene.lights.find((l) => l.id === id);
+  }
+
+  // ── Windows ──────────────────────────────────────────────────────────────
+
+  addWindow(input: WindowInput): { id: ID } | undefined {
+    const wall = this.scene.walls.find(w => w.id === input.wallId);
+    if (!wall) return undefined;
+    if (input.position < 0 || input.position > 1) return undefined;
+    const id = genId('win');
+    this.scene.windows.push({
+      id,
+      wallId: input.wallId,
+      position: input.position,
+      width: input.width ?? 30,
+    });
+    this.emit('add-window', [id]);
+    return { id };
+  }
+
+  updateWindow(id: ID, patch: Partial<Omit<import('./SceneTypes').Window, 'id'>>): boolean {
+    const w = this.scene.windows.find(x => x.id === id);
+    if (!w) return false;
+    Object.assign(w, patch);
+    this.emit('update-window', [id]);
+    return true;
+  }
+
+  removeWindow(id: ID): boolean {
+    const i = this.scene.windows.findIndex(w => w.id === id);
+    if (i < 0) return false;
+    this.scene.windows.splice(i, 1);
+    this.emit('remove-window', [id]);
+    return true;
+  }
+
+  findWindowById(id: ID): import('./SceneTypes').Window | undefined {
+    return this.scene.windows.find(w => w.id === id);
+  }
+
+  // ── Serialization ────────────────────────────────────────────────────────
+
+  /**
+   * Returns the current scene as a serializable plain object.
+   */
+  serialize(): import('./SceneTypes').Scene {
+    return this.snapshot();
+  }
+
+  /**
+   * Replaces the entire scene with a new one (e.g., loaded from file).
+   * Notifies all listeners.
+   */
+  replace(newScene: import('./SceneTypes').Scene): void {
+    this.scene = structuredClone(newScene);
+    this.emit('replace', []);
   }
 }

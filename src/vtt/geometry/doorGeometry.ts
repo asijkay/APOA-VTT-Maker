@@ -1,4 +1,4 @@
-import type { Wall, Door } from '../scene/SceneTypes';
+import type { Wall, Door, Window as VttWindow } from '../scene/SceneTypes';
 import type { Segment } from './segments';
 import { dist } from './segments';
 
@@ -57,46 +57,58 @@ export function projectPointOnWall(
 }
 
 /**
- * Computes the effective vision-blocking segments for a wall, considering attached doors.
- * Closed doors create gaps in the wall's blocking segment.
- * Open doors restore the wall's blocking in that area.
+/**
+ * Computes the effective vision-blocking segments for a wall, considering attached doors and windows.
+ * Open doors create gaps (vision passes through).
+ * Windows ALWAYS create gaps (vision always passes through windows).
  */
 export function getEffectiveVisionSegments(
   wall: Wall,
   doors: Door[],
+  windows: VttWindow[] = [],
 ): Segment[] {
   if (!wall.blocksVision) return [];
 
-  const wallDoors = doors.filter(d => d.wallId === wall.id);
-  if (wallDoors.length === 0) {
-    return [{
-      p1: { x: wall.x1, y: wall.y1 },
-      p2: { x: wall.x2, y: wall.y2 },
-    }];
-  }
-
-  const sortedDoors = [...wallDoors].sort((a, b) => a.position - b.position);
-  const segments: Segment[] = [];
-  let lastPos = 0;
-  
   const dx = wall.x2 - wall.x1;
   const dy = wall.y2 - wall.y1;
   const wallLen = Math.sqrt(dx * dx + dy * dy);
 
-  for (const door of sortedDoors) {
-    // Open doors create gaps in vision blocking
+  // Collect all openings (open doors + all windows)
+  type Opening = { start: number; end: number };
+  const openings: Opening[] = [];
+
+  for (const door of doors.filter(d => d.wallId === wall.id)) {
     if (door.state === 'open') {
       const normWidth = wallLen > 0 ? door.width / wallLen : 0;
-      const doorStart = Math.max(0, door.position - normWidth / 2);
-      const doorEnd = Math.min(1, door.position + normWidth / 2);
-
-      if (doorStart > lastPos) {
-        segments.push(createWallSegment(wall, lastPos, doorStart));
-      }
-      lastPos = doorEnd;
+      openings.push({
+        start: Math.max(0, door.position - normWidth / 2),
+        end: Math.min(1, door.position + normWidth / 2),
+      });
     }
   }
 
+  for (const win of windows.filter(w => w.wallId === wall.id)) {
+    const normWidth = wallLen > 0 ? win.width / wallLen : 0;
+    openings.push({
+      start: Math.max(0, win.position - normWidth / 2),
+      end: Math.min(1, win.position + normWidth / 2),
+    });
+  }
+
+  if (openings.length === 0) {
+    return [{ p1: { x: wall.x1, y: wall.y1 }, p2: { x: wall.x2, y: wall.y2 } }];
+  }
+
+  openings.sort((a, b) => a.start - b.start);
+
+  const segments: Segment[] = [];
+  let lastPos = 0;
+  for (const opening of openings) {
+    if (opening.start > lastPos) {
+      segments.push(createWallSegment(wall, lastPos, opening.start));
+    }
+    lastPos = Math.max(lastPos, opening.end);
+  }
   if (lastPos < 1) {
     segments.push(createWallSegment(wall, lastPos, 1));
   }
@@ -106,8 +118,8 @@ export function getEffectiveVisionSegments(
 
 /**
  * Computes the effective movement-blocking segments for a wall, considering attached doors.
- * Closed doors block movement (like walls).
- * Open doors allow movement (create gaps).
+ * Windows do NOT create movement gaps — movement is always blocked through windows.
+ * Open doors allow movement.
  */
 export function getEffectiveMovementSegments(
   wall: Wall,
@@ -117,34 +129,28 @@ export function getEffectiveMovementSegments(
 
   const wallDoors = doors.filter(d => d.wallId === wall.id);
   if (wallDoors.length === 0) {
-    return [{
-      p1: { x: wall.x1, y: wall.y1 },
-      p2: { x: wall.x2, y: wall.y2 },
-    }];
+    return [{ p1: { x: wall.x1, y: wall.y1 }, p2: { x: wall.x2, y: wall.y2 } }];
   }
-
-  const sortedDoors = [...wallDoors].sort((a, b) => a.position - b.position);
-  const segments: Segment[] = [];
-  let lastPos = 0;
 
   const dx = wall.x2 - wall.x1;
   const dy = wall.y2 - wall.y1;
   const wallLen = Math.sqrt(dx * dx + dy * dy);
 
+  const segments: Segment[] = [];
+  let lastPos = 0;
+  const sortedDoors = [...wallDoors].sort((a, b) => a.position - b.position);
+
   for (const door of sortedDoors) {
-    // Open doors create gaps in movement blocking
     if (door.state === 'open') {
       const normWidth = wallLen > 0 ? door.width / wallLen : 0;
       const doorStart = Math.max(0, door.position - normWidth / 2);
       const doorEnd = Math.min(1, door.position + normWidth / 2);
-
       if (doorStart > lastPos) {
         segments.push(createWallSegment(wall, lastPos, doorStart));
       }
       lastPos = doorEnd;
     }
   }
-
   if (lastPos < 1) {
     segments.push(createWallSegment(wall, lastPos, 1));
   }

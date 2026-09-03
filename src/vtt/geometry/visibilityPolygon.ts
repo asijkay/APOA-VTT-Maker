@@ -92,8 +92,8 @@ export function wallsToVisionSegments(scene: Scene): Segment[] {
   for (const wall of scene.walls) {
     if (!wall.blocksVision) continue;
     
-    // Get effective segments considering doors
-    const wallSegments = getEffectiveVisionSegments(wall, scene.doors);
+    // Get effective segments considering doors and windows
+    const wallSegments = getEffectiveVisionSegments(wall, scene.doors, scene.windows);
     segments.push(...wallSegments);
   }
   return segments;

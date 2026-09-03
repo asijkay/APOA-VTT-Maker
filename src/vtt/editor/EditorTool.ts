@@ -4,6 +4,7 @@ import type { SceneStore } from '../scene/SceneStore';
 import type { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
 import type { EditorTool } from '../scene/SceneTypes';
 import type { SelectionState } from './SelectionState';
+import type { UndoManager } from '../scene/UndoManager';
 
 export type ToolPointerEvent = {
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel';
@@ -23,6 +24,7 @@ export type ToolPointerEvent = {
 export type ToolContext = {
   camera: Camera;
   scene: SceneStore;
+  undoManager: UndoManager;
   preview: EditorPreviewRenderer;
   selection: SelectionState;
   world: Readonly<{ screenToWorld: (sx: number, sy: number) => Point2 }>;

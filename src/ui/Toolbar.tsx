@@ -15,9 +15,10 @@ type ToolSpec = {
 const TOOLS: ToolSpec[] = [
   { id: 'select', label: 'Select', hotkey: 'V', enabled: true },
   { id: 'floor', label: 'Floor', hotkey: 'F', enabled: true },
-  { id: 'erase-floor', label: 'Erase Floor', hotkey: 'E', enabled: true },
+  { id: 'erase-floor', label: 'Erase', hotkey: 'E', enabled: true },
   { id: 'wall', label: 'Wall', hotkey: 'W', enabled: true },
   { id: 'door', label: 'Door', hotkey: 'D', enabled: true },
+  { id: 'window', label: 'Window', hotkey: 'I', enabled: true },
   { id: 'light', label: 'Light', hotkey: 'L', enabled: true },
   { id: 'token', label: 'Token', hotkey: 'T', enabled: true },
 ];

@@ -29,6 +29,13 @@ export type Door = {
   hidden: boolean;
 };
 
+export type Window = {
+  id: ID;
+  wallId: ID;
+  position: number; // normalized 0-1 along wall
+  width: number;    // world units
+};
+
 export type Light = {
   id: ID;
   x: number;
@@ -54,6 +61,7 @@ export type Scene = {
   doors: Door[];
   lights: Light[];
   tokens: Token[];
+  windows: Window[];
 };
 
 export type EditorTool =
@@ -62,6 +70,7 @@ export type EditorTool =
   | 'erase-floor'
   | 'wall'
   | 'door'
+  | 'window'
   | 'light'
   | 'token';
 
@@ -72,5 +81,6 @@ export function createEmptyScene(): Scene {
     doors: [],
     lights: [],
     tokens: [],
+    windows: [],
   };
 }
