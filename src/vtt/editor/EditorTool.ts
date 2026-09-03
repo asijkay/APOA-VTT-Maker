@@ -27,6 +27,7 @@ export type ToolContext = {
   undoManager: UndoManager;
   preview: EditorPreviewRenderer;
   selection: SelectionState;
+  snapTokens: boolean;
   world: Readonly<{ screenToWorld: (sx: number, sy: number) => Point2 }>;
 };
 

@@ -246,6 +246,21 @@ export class VttEngine {
     if (scene) this.loadScene(scene);
   }
 
+  /** Toggle token snap-to-grid. Default is true. */
+  setSnapTokens(snap: boolean): void {
+    this.editor.setSnapTokens(snap);
+  }
+
+  /** Clear the entire scene and start fresh. */
+  newScene(): void {
+    this.editor.getUndoManager().clear();
+    this.fogSystem.reset();
+    this.sceneStore.replace({
+      floors: [], walls: [], doors: [], windows: [], lights: [], tokens: [],
+    });
+    PersistenceService.clearLocalStorage();
+  }
+
   getDebugStats(): DebugStats {
     const cs = this.camera.getState();
     return {

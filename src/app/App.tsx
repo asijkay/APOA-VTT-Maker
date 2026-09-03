@@ -24,6 +24,7 @@ export default function App() {
   const [debugVision, setDebugVision] = useState(false);
   const [debugCollision, setDebugCollision] = useState(false);
   const [viewMode, setViewMode] = useState<'gm' | 'player'>('gm');
+  const [snapTokens, setSnapTokens] = useState(true);
   const engineRef = useRef<VttEngine | null>(null);
 
   const handleDebug = useCallback((s: DebugStats) => { setStats(s); }, []);
@@ -31,7 +32,7 @@ export default function App() {
   const handleSelectionChange = useCallback((id: string | null) => { setSelectedId(id); }, []);
   const handleSceneChange = useCallback(() => { setSceneVersion((v) => v + 1); }, []);
 
-  // Sync debug options when they change
+  // Sync debug options
   useEffect(() => {
     if (engineRef.current) {
       engineRef.current.setDebugOptions({ showVision: debugVision, showCollision: debugCollision });
@@ -41,23 +42,23 @@ export default function App() {
 
   // Sync GM/Player view mode
   useEffect(() => {
-    if (engineRef.current) {
-      engineRef.current.setViewMode(viewMode);
-    }
+    engineRef.current?.setViewMode(viewMode);
   }, [viewMode]);
 
-  // Global Ctrl+Z / Ctrl+Y keyboard shortcuts for undo/redo
+  // Sync snap-to-grid
+  useEffect(() => {
+    engineRef.current?.setSnapTokens(snapTokens);
+  }, [snapTokens]);
+
+  // Global Ctrl+Z / Ctrl+Y shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!engineRef.current) return;
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       if (e.key === 'z' || e.key === 'Z') {
-        if (e.shiftKey) {
-          engineRef.current.redo();
-        } else {
-          engineRef.current.undo();
-        }
+        if (e.shiftKey) engineRef.current.redo();
+        else engineRef.current.undo();
         e.preventDefault();
       } else if (e.key === 'y' || e.key === 'Y') {
         engineRef.current.redo();
@@ -68,48 +69,77 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  const toggleViewMode = () => {
-    const newMode = viewMode === 'gm' ? 'player' : 'gm';
-    setViewMode(newMode);
+  const handleNewScene = () => {
+    if (window.confirm('Start a new scene? All unsaved changes will be lost.')) {
+      engineRef.current?.newScene();
+      setSelectedId(null);
+    }
   };
 
-  const btnStyle: React.CSSProperties = { padding: '3px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#d6dbe2' };
-  const activeBtn: React.CSSProperties = { ...btnStyle, background: 'rgba(99,179,237,0.25)', borderColor: 'rgba(99,179,237,0.6)', color: '#90cdf4' };
+  const btnStyle: React.CSSProperties = {
+    padding: '3px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 4,
+    border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)',
+    color: '#d6dbe2', whiteSpace: 'nowrap',
+  };
+  const activeBtn: React.CSSProperties = {
+    ...btnStyle, background: 'rgba(99,179,237,0.25)',
+    borderColor: 'rgba(99,179,237,0.6)', color: '#90cdf4',
+  };
+  const dangerBtn: React.CSSProperties = {
+    ...btnStyle, borderColor: 'rgba(252,129,129,0.4)', color: '#fc8181',
+  };
 
   return (
     <div className="app-shell">
       <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
 
       {/* Bottom-left control panel */}
-      <div className="debug-toggles" style={{ position: 'absolute', bottom: 12, left: 12, zIndex: 10, background: 'rgba(18, 22, 28, 0.88)', padding: 10, borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.08)', color: '#d6dbe2', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 8, backdropFilter: 'blur(6px)', minWidth: 160 }}>
-        
-        {/* View mode toggle */}
+      <div style={{
+        position: 'absolute', bottom: 12, left: 12, zIndex: 10,
+        background: 'rgba(18, 22, 28, 0.90)', padding: 10, borderRadius: 8,
+        border: '1px solid rgba(255, 255, 255, 0.08)', color: '#d6dbe2',
+        fontSize: 12, display: 'flex', flexDirection: 'column', gap: 7,
+        backdropFilter: 'blur(6px)', minWidth: 170,
+      }}>
+
+        {/* View mode */}
+        <button
+          style={viewMode === 'gm' ? activeBtn : btnStyle}
+          onClick={() => setViewMode(m => m === 'gm' ? 'player' : 'gm')}
+        >
+          {viewMode === 'gm' ? '👁 GM View' : '🎭 Player View'}
+        </button>
+
+        {/* Save / Load / New */}
         <div style={{ display: 'flex', gap: 4 }}>
-          <button style={viewMode === 'gm' ? activeBtn : btnStyle} onClick={toggleViewMode}>
-            {viewMode === 'gm' ? '👁 GM View' : '🎭 Player View'}
-          </button>
+          <button style={btnStyle} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
+          <button style={btnStyle} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
+          <button style={dangerBtn} onClick={handleNewScene}>🗑</button>
         </div>
 
-        {/* Save / Load */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button style={btnStyle} title="Save scene to JSON file" onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
-          <button style={btnStyle} title="Load scene from JSON file" onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
-        </div>
-
-        {/* Debug toggles */}
+        {/* Snap to grid */}
         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={debugVision} onChange={(e) => setDebugVision(e.target.checked)} />
+          <input type="checkbox" checked={snapTokens}
+            onChange={e => setSnapTokens(e.target.checked)} />
+          Snap tokens to grid
+        </label>
+
+        {/* Debug */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={debugVision}
+            onChange={e => setDebugVision(e.target.checked)} />
           Debug Vision
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={debugCollision} onChange={(e) => setDebugCollision(e.target.checked)} />
+          <input type="checkbox" checked={debugCollision}
+            onChange={e => setDebugCollision(e.target.checked)} />
           Debug Collision
         </label>
 
         {/* Test rooms */}
         <div style={{ display: 'flex', gap: 4 }}>
-          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1) }}>Room 1</button>
-          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2) }}>Room 2</button>
+          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Room 1</button>
+          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Room 2</button>
         </div>
       </div>
 
@@ -121,6 +151,7 @@ export default function App() {
         onSceneChange={handleSceneChange}
         engineRef={engineRef}
       />
+
       {selectedId && engineRef.current && (
         <PropertiesPanel
           selectedId={selectedId}
@@ -128,6 +159,7 @@ export default function App() {
           sceneVersion={sceneVersion}
         />
       )}
+
       <DebugHud stats={stats} />
     </div>
   );

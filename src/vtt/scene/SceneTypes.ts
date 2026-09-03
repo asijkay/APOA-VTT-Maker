@@ -53,6 +53,8 @@ export type Token = {
   elevation: number;
   radius: number;
   visionRadius: number;
+  name?: string;
+  imageUrl?: string;
 };
 
 export type Scene = {

@@ -55,6 +55,8 @@ export type TokenInput = {
   elevation?: number;
   radius?: number;
   visionRadius?: number;
+  name?: string;
+  imageUrl?: string;
 };
 
 export type DoorInput = {
@@ -274,6 +276,7 @@ export class SceneStore {
 
   addToken(input: TokenInput): { id: ID } {
     const id = genId('token');
+    const tokenNumber = this.scene.tokens.length + 1;
     this.scene.tokens.push({
       id,
       x: input.x,
@@ -281,6 +284,8 @@ export class SceneStore {
       elevation: input.elevation ?? 0,
       radius: input.radius ?? 15,
       visionRadius: input.visionRadius ?? 300,
+      name: input.name ?? `Token ${tokenNumber}`,
+      imageUrl: input.imageUrl,
     });
     this.emit('add-token', [id]);
     return { id };

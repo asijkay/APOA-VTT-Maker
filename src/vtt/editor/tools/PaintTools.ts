@@ -4,6 +4,7 @@ import type { EditorTool } from '../../scene/SceneTypes';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import type { PreviewFloorCell } from '../../renderer/EditorPreviewRenderer';
 import { resolveCircleAgainstSceneWalls } from '../../geometry/collision';
+import { opMoveToken } from '../../scene/UndoManager';
 
 export function screenCell(sx: number, sy: number, camera: Camera): { gx: number; gy: number } {
   const w = camera.screenToWorld(sx, sy);
@@ -238,6 +239,24 @@ export class SelectTool implements EditorToolController {
     }
 
     if (e.type === 'pointerup' || e.type === 'pointercancel') {
+      if (this.dragToken && this.dragToken.moved) {
+        // Snap to grid if enabled
+        const t = this.ctx.scene.findTokenById(this.dragToken.id);
+        if (t && this.ctx.snapTokens) {
+          const gx = Math.floor(t.x / GRID_SIZE);
+          const gy = Math.floor(t.y / GRID_SIZE);
+          const snapped = cellCenter(gx, gy);
+          this.ctx.scene.updateToken(this.dragToken.id, { x: snapped.x, y: snapped.y });
+        }
+        // Record undo for the drag
+        const finalToken = this.ctx.scene.findTokenById(this.dragToken.id);
+        if (finalToken) {
+          const { startX, startY, id } = this.dragToken;
+          this.ctx.undoManager.pushOperation(
+            opMoveToken(id, finalToken.x, finalToken.y, startX, startY)
+          );
+        }
+      }
       this.dragToken = null;
       return;
     }

@@ -41,6 +41,7 @@ export class EditorController {
   private handleKeyUpBound: (e: KeyboardEvent) => void;
   private onActiveToolChange?: (tool: EditorTool) => void;
   private activePointerId: number | null = null;
+  private _snapTokens = true;
 
   constructor(opts: EditorControllerOpts) {
     this.camera = opts.camera;
@@ -71,6 +72,7 @@ export class EditorController {
       undoManager: this.undoManager,
       preview: this.preview,
       selection: this.selection,
+      snapTokens: this._snapTokens,
       world: {
         screenToWorld: (sx, sy) => cameraRef.screenToWorld(sx, sy),
       },
@@ -213,6 +215,11 @@ export class EditorController {
 
   getUndoManager(): UndoManager {
     return this.undoManager;
+  }
+
+  setSnapTokens(snap: boolean): void {
+    this._snapTokens = snap;
+    this.ctx.snapTokens = snap;
   }
 
   private buildEvent(

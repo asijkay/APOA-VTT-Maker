@@ -1,6 +1,6 @@
 import type { VttEngine } from '@/vtt/engine/VttEngine';
-import type { Door, Light, Token, Wall } from '@/vtt/scene/SceneTypes';
-import { useCallback } from 'react';
+import type { Door, Light, Token, Wall, Window as VttWindow } from '@/vtt/scene/SceneTypes';
+import { useCallback, useRef } from 'react';
 
 type Props = {
   selectedId: string;
@@ -8,159 +8,259 @@ type Props = {
   sceneVersion: number;
 };
 
+const panelStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: 12,
+  top: 12,
+  zIndex: 10,
+  background: 'rgba(18, 22, 28, 0.94)',
+  padding: '12px 14px',
+  borderRadius: 10,
+  border: '1px solid rgba(255, 255, 255, 0.10)',
+  color: '#d6dbe2',
+  fontSize: 12,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  backdropFilter: 'blur(8px)',
+  minWidth: 210,
+  maxWidth: 240,
+};
+
+const labelRow: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 3,
+};
+
+const rowBetween: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+};
+
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.07)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: 5,
+  color: '#d6dbe2',
+  padding: '3px 7px',
+  fontSize: 12,
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const rangeStyle: React.CSSProperties = { width: '100%', accentColor: '#63b3ed' };
+
+const sectionTitle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: '#90cdf4',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: 2,
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  paddingBottom: 4,
+};
+
+const bigButtonStyle = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '5px 0',
+  borderRadius: 6,
+  border: `1px solid ${active ? 'rgba(99,179,237,0.6)' : 'rgba(255,255,255,0.12)'}`,
+  background: active ? 'rgba(99,179,237,0.22)' : 'rgba(255,255,255,0.06)',
+  color: active ? '#90cdf4' : '#a0aec0',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 600,
+});
+
 export default function PropertiesPanel({ selectedId, engine, sceneVersion }: Props) {
-  // Using sceneVersion to force re-render when scene changes
   void sceneVersion;
 
   const sceneStore = engine.getScene();
-  const wall = sceneStore.findWallById(selectedId);
-  const door = sceneStore.findDoorById(selectedId);
-  const light = sceneStore.findLightById(selectedId);
-  const token = sceneStore.findTokenById(selectedId);
+  const wall   = sceneStore.findWallById(selectedId);
+  const door   = sceneStore.findDoorById(selectedId);
+  const light  = sceneStore.findLightById(selectedId);
+  const token  = sceneStore.findTokenById(selectedId);
+  const win    = sceneStore.findWindowById(selectedId);
 
-  const handleUpdateWall = useCallback((patch: Partial<Omit<Wall, 'id'>>) => {
-    sceneStore.updateWall(selectedId, patch);
-  }, [sceneStore, selectedId]);
+  const handleUpdateWall  = useCallback((p: Partial<Omit<Wall, 'id'>>) => sceneStore.updateWall(selectedId, p),  [sceneStore, selectedId]);
+  const handleUpdateDoor  = useCallback((p: Partial<Omit<Door, 'id'>>) => sceneStore.updateDoor(selectedId, p),  [sceneStore, selectedId]);
+  const handleUpdateLight = useCallback((p: Partial<Omit<Light, 'id'>>) => sceneStore.updateLight(selectedId, p), [sceneStore, selectedId]);
+  const handleUpdateToken = useCallback((p: Partial<Omit<Token, 'id'>>) => sceneStore.updateToken(selectedId, p), [sceneStore, selectedId]);
+  const handleUpdateWin   = useCallback((p: Partial<Omit<VttWindow, 'id'>>) => sceneStore.updateWindow(selectedId, p), [sceneStore, selectedId]);
 
-  const handleUpdateDoor = useCallback((patch: Partial<Omit<Door, 'id'>>) => {
-    sceneStore.updateDoor(selectedId, patch);
-  }, [sceneStore, selectedId]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpdateLight = useCallback((patch: Partial<Omit<Light, 'id'>>) => {
-    sceneStore.updateLight(selectedId, patch);
-  }, [sceneStore, selectedId]);
-
-  const handleUpdateToken = useCallback((patch: Partial<Omit<Token, 'id'>>) => {
-    sceneStore.updateToken(selectedId, patch);
-  }, [sceneStore, selectedId]);
-
+  // ── Wall ─────────────────────────────────────────────────────────────────
   if (wall) {
     return (
-      <div className="properties-panel">
-        <h3>Wall Properties</h3>
-        <label>
-          <input
-            type="checkbox"
-            checked={wall.blocksVision}
-            onChange={(e) => handleUpdateWall({ blocksVision: e.target.checked })}
-          />
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Wall</div>
+        <label style={rowBetween}>
+          <input type="checkbox" checked={wall.blocksVision}
+            onChange={e => handleUpdateWall({ blocksVision: e.target.checked })} />
           Blocks Vision
         </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={wall.blocksMovement}
-            onChange={(e) => handleUpdateWall({ blocksMovement: e.target.checked })}
-          />
+        <label style={rowBetween}>
+          <input type="checkbox" checked={wall.blocksMovement}
+            onChange={e => handleUpdateWall({ blocksMovement: e.target.checked })} />
           Blocks Movement
         </label>
       </div>
     );
   }
 
+  // ── Door ─────────────────────────────────────────────────────────────────
   if (door) {
     return (
-      <div className="properties-panel">
-        <h3>Door Properties</h3>
-        <label>
-          State:
-          <select
-            value={door.state}
-            onChange={(e) => handleUpdateDoor({ state: e.target.value as 'open' | 'closed' })}
-          >
-            <option value="closed">Closed</option>
-            <option value="open">Open</option>
-          </select>
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Door</div>
+
+        {/* Big open/closed toggle */}
+        <div style={rowBetween}>
+          <button style={bigButtonStyle(door.state === 'closed')}
+            onClick={() => handleUpdateDoor({ state: 'closed' })}>🚪 Closed</button>
+          <button style={bigButtonStyle(door.state === 'open')}
+            onClick={() => handleUpdateDoor({ state: 'open' })}>↩️ Open</button>
+        </div>
+
+        <div style={labelRow}>
+          <span>Width: {door.width}wu</span>
+          <input type="range" min={10} max={100} step={5} style={rangeStyle}
+            value={door.width}
+            onChange={e => handleUpdateDoor({ width: Number(e.target.value) })} />
+        </div>
+
+        <label style={rowBetween}>
+          <input type="checkbox" checked={door.locked}
+            onChange={e => handleUpdateDoor({ locked: e.target.checked })} />
+          🔒 Locked
         </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={door.locked}
-            onChange={(e) => handleUpdateDoor({ locked: e.target.checked })}
-          />
-          Locked
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={door.hidden}
-            onChange={(e) => handleUpdateDoor({ hidden: e.target.checked })}
-          />
-          Hidden
+        <label style={rowBetween}>
+          <input type="checkbox" checked={door.hidden}
+            onChange={e => handleUpdateDoor({ hidden: e.target.checked })} />
+          👻 Hidden from players
         </label>
       </div>
     );
   }
 
+  // ── Window ────────────────────────────────────────────────────────────────
+  if (win) {
+    return (
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Window</div>
+        <div style={{ fontSize: 11, color: '#718096' }}>
+          Vision &amp; light pass through. Movement blocked.
+        </div>
+        <div style={labelRow}>
+          <span>Width: {win.width}wu</span>
+          <input type="range" min={10} max={120} step={5} style={rangeStyle}
+            value={win.width}
+            onChange={e => handleUpdateWin({ width: Number(e.target.value) })} />
+        </div>
+        <div style={{ fontSize: 11, color: '#4a5568' }}>
+          Position: {(win.position * 100).toFixed(0)}% along wall
+        </div>
+      </div>
+    );
+  }
+
+  // ── Light ─────────────────────────────────────────────────────────────────
   if (light) {
     return (
-      <div className="properties-panel">
-        <h3>Light Properties</h3>
-        <label>
-          Radius ({light.radius})
-          <input
-            type="range"
-            min="10"
-            max="1000"
-            step="10"
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Light</div>
+        <div style={labelRow}>
+          <span>Radius: {light.radius}wu</span>
+          <input type="range" min={10} max={1000} step={10} style={rangeStyle}
             value={light.radius}
-            onChange={(e) => handleUpdateLight({ radius: Number(e.target.value) })}
-          />
-        </label>
-        <label>
-          Color
-          <input
-            type="color"
-            value={light.color}
-            onChange={(e) => handleUpdateLight({ color: e.target.value })}
-          />
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={light.enabled}
-            onChange={(e) => handleUpdateLight({ enabled: e.target.checked })}
-          />
+            onChange={e => handleUpdateLight({ radius: Number(e.target.value) })} />
+        </div>
+        <div style={rowBetween}>
+          <span>Color</span>
+          <input type="color" value={light.color}
+            onChange={e => handleUpdateLight({ color: e.target.value })}
+            style={{ width: 40, height: 28, border: 'none', background: 'none', cursor: 'pointer' }} />
+        </div>
+        <label style={rowBetween}>
+          <input type="checkbox" checked={light.enabled}
+            onChange={e => handleUpdateLight({ enabled: e.target.checked })} />
           Enabled
         </label>
       </div>
     );
   }
 
+  // ── Token ─────────────────────────────────────────────────────────────────
   if (token) {
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (dataUrl) handleUpdateToken({ imageUrl: dataUrl });
+      };
+      reader.readAsDataURL(file);
+    };
+
+    const handleClearImage = () => {
+      handleUpdateToken({ imageUrl: undefined });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
     return (
-      <div className="properties-panel">
-        <h3>Token Properties</h3>
-        <label>
-          Size Radius ({token.radius})
-          <input
-            type="range"
-            min="5"
-            max="100"
-            step="1"
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Token</div>
+
+        {/* Name */}
+        <div style={labelRow}>
+          <span>Name</span>
+          <input type="text" style={inputStyle}
+            value={token.name ?? ''}
+            onChange={e => handleUpdateToken({ name: e.target.value })}
+            placeholder="Token name…" />
+        </div>
+
+        {/* Portrait image */}
+        <div style={labelRow}>
+          <span>Portrait</span>
+          {token.imageUrl && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <img src={token.imageUrl} alt="portrait"
+                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }} />
+              <button onClick={handleClearImage}
+                style={{ ...inputStyle, width: 'auto', padding: '2px 8px', cursor: 'pointer', color: '#fc8181' }}>
+                Remove
+              </button>
+            </div>
+          )}
+          <input ref={fileInputRef} type="file" accept="image/*"
+            style={{ fontSize: 11, color: '#718096' }}
+            onChange={handleImageUpload} />
+        </div>
+
+        {/* Size */}
+        <div style={labelRow}>
+          <span>Size radius: {token.radius}wu</span>
+          <input type="range" min={5} max={100} step={1} style={rangeStyle}
             value={token.radius}
-            onChange={(e) => handleUpdateToken({ radius: Number(e.target.value) })}
-          />
-        </label>
-        <label>
-          Vision Radius ({token.visionRadius})
-          <input
-            type="range"
-            min="0"
-            max="2000"
-            step="10"
+            onChange={e => handleUpdateToken({ radius: Number(e.target.value) })} />
+        </div>
+
+        {/* Vision */}
+        <div style={labelRow}>
+          <span>Vision radius: {token.visionRadius}wu</span>
+          <input type="range" min={0} max={2000} step={10} style={rangeStyle}
             value={token.visionRadius}
-            onChange={(e) => handleUpdateToken({ visionRadius: Number(e.target.value) })}
-          />
-        </label>
+            onChange={e => handleUpdateToken({ visionRadius: Number(e.target.value) })} />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="properties-panel">
-      <h3>Properties</h3>
-      <p>Unknown object selected.</p>
-    </div>
-  );
+  return null;
 }

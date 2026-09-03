@@ -93,6 +93,16 @@ export class UndoManager {
   }
 
   /**
+   * Records a pre-applied operation into the undo history without calling apply().
+   * Use this when the operation has already been applied (e.g., live token drag).
+   */
+  pushOperation(op: Operation): void {
+    this.undoStack.push(op);
+    if (this.undoStack.length > MAX_STACK) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  /**
    * Creates a snapshot-based operation for cases where computing
    * a precise inverse is complex (e.g., bulk operations).
    * Warning: stores a full scene clone — use sparingly.
