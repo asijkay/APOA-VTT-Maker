@@ -6,6 +6,8 @@ type Props = {
   onDebugUpdate?: (stats: DebugStats) => void;
   activeTool: EditorTool;
   onActiveToolChange?: (tool: EditorTool) => void;
+  onSelectionChange?: (id: string | null) => void;
+  onSceneChange?: () => void;
   engineRef?: React.MutableRefObject<VttEngine | null>;
 };
 
@@ -13,6 +15,8 @@ export default function VttViewport({
   onDebugUpdate,
   activeTool,
   onActiveToolChange,
+  onSelectionChange,
+  onSceneChange,
   engineRef: externalEngineRef,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -30,12 +34,15 @@ export default function VttViewport({
         container: host,
         onDebugUpdate,
         onActiveToolChange,
+        onSelectionChange,
+        onSceneChange,
       });
       if (disposed) {
         engine.destroy();
         return;
       }
       getEngineRef().current = engine;
+      (window as any).__engine = engine;
       if (onDebugUpdate) onDebugUpdate(engine.getDebugStats());
     })();
 

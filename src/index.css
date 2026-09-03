@@ -115,6 +115,57 @@ body,
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+.toolbar button:active {
+  background: #333945;
+}
+
+.properties-panel {
+  position: absolute;
+  top: 110px;
+  right: 12px;
+  width: 250px;
+  background: #1e222b;
+  border: 1px solid #2d3340;
+  border-radius: 6px;
+  padding: 12px;
+  color: #c9d1d9;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.properties-panel h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #fff;
+  border-bottom: 1px solid #2d3340;
+  padding-bottom: 6px;
+}
+
+.properties-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.properties-panel label input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+.properties-panel label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+}
+
+.properties-panel select,
+.properties-panel input[type="range"] {
+  width: 100%;
+}
+
 .tool-btn.is-active {
   background: #3865a5;
   border-color: #5aa3d9;

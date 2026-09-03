@@ -3,6 +3,7 @@ import type { Camera } from '../engine/Camera';
 import type { SceneStore } from '../scene/SceneStore';
 import type { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
 import type { EditorTool } from '../scene/SceneTypes';
+import type { SelectionState } from './SelectionState';
 
 export type ToolPointerEvent = {
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel';
@@ -23,6 +24,7 @@ export type ToolContext = {
   camera: Camera;
   scene: SceneStore;
   preview: EditorPreviewRenderer;
+  selection: SelectionState;
   world: Readonly<{ screenToWorld: (sx: number, sy: number) => Point2 }>;
 };
 

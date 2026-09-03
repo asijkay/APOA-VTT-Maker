@@ -25,6 +25,12 @@ dist-ssr
 
 # Project design doc (contract only, local to repo)
 AGENTS.md
-
+playwright-report/
+test-results/
+src/__tests__/
+tests/
+playwright.config.ts
+playwright.mcp.json
+Develop Virtual Tabletop Application.md
 # TypeScript build caches
 *.tsbuildinfo

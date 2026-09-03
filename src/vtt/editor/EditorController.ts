@@ -5,12 +5,18 @@ import type { SceneStore } from '../scene/SceneStore';
 import type { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from './EditorTool';
 import { EraseFloorTool, FloorTool, SelectTool } from './tools/PaintTools';
+import { WallTool } from './tools/WallTool';
+import { DoorTool } from './tools/DoorTool';
+import { LightTool } from './tools/LightTool';
+import { TokenTool } from './tools/TokenTool';
+import { SelectionState, type SelectionListener } from './SelectionState';
 
 export type EditorControllerOpts = {
   camera: Camera;
   scene: SceneStore;
   preview: EditorPreviewRenderer;
   onActiveToolChange?: (tool: EditorTool) => void;
+  onSelectionChange?: SelectionListener;
 };
 
 type PanState =
@@ -21,6 +27,7 @@ export class EditorController {
   private camera: Camera;
   private scene: SceneStore;
   private preview: EditorPreviewRenderer;
+  private selection: SelectionState;
   private tools: Map<EditorTool, EditorToolController>;
   private activeToolId: EditorTool = 'select';
   private activeTool: EditorToolController;
@@ -36,22 +43,33 @@ export class EditorController {
     this.camera = opts.camera;
     this.scene = opts.scene;
     this.preview = opts.preview;
+    this.selection = new SelectionState();
     this.onActiveToolChange = opts.onActiveToolChange;
+    if (opts.onSelectionChange) {
+      this.selection.subscribe(opts.onSelectionChange);
+    }
 
     this.tools = new Map();
     this.registerTool(new SelectTool());
     this.registerTool(new FloorTool());
     this.registerTool(new EraseFloorTool());
+    this.registerTool(new WallTool());
+    this.registerTool(new DoorTool());
+    this.registerTool(new LightTool());
+    this.registerTool(new TokenTool());
 
     const cameraRef = this.camera;
+    const selectionRef = this.selection;
     this.ctx = {
       camera: this.camera,
       scene: this.scene,
       preview: this.preview,
+      selection: this.selection,
       world: {
         screenToWorld: (sx, sy) => cameraRef.screenToWorld(sx, sy),
       },
     };
+    void selectionRef;
 
     const initial = this.tools.get(this.activeToolId);
     if (!initial) throw new Error('No select tool registered');
@@ -183,6 +201,10 @@ export class EditorController {
     return this.pan.active || this.spacePressed;
   }
 
+  getSelection(): string | null {
+    return this.selection.get();
+  }
+
   private buildEvent(
     type: ToolPointerEvent['type'],
     e: {
@@ -274,6 +296,21 @@ export class EditorController {
       const tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      const sel = this.selection.get();
+      if (sel) {
+        if (this.scene.removeWall(sel)) {
+          this.selection.set(null);
+          e.preventDefault();
+          return;
+        }
+        if (this.scene.removeToken(sel)) {
+          this.selection.set(null);
+          e.preventDefault();
+          return;
+        }
+      }
+    }
     switch (e.key.toLowerCase()) {
       case 'v':
         this.setActiveTool('select');
@@ -283,6 +320,21 @@ export class EditorController {
         break;
       case 'e':
         this.setActiveTool('erase-floor');
+        break;
+      case 'w':
+        this.setActiveTool('wall');
+        break;
+      case 'd':
+        this.setActiveTool('door');
+        break;
+      case 'l':
+        this.setActiveTool('light');
+        break;
+      case 't':
+        this.setActiveTool('token');
+        break;
+      case 'escape':
+        this.selection.set(null);
         break;
       default:
         break;

@@ -2,10 +2,17 @@ import { Application, Container } from 'pixi.js';
 import { Camera } from './Camera';
 import { GridRenderer } from '../renderer/GridRenderer';
 import { FloorRenderer } from '../renderer/FloorRenderer';
+import { WallRenderer } from '../renderer/WallRenderer';
+import { DoorRenderer } from '../renderer/DoorRenderer';
+import { LightRenderer } from '../renderer/LightRenderer';
+import { TokenRenderer } from '../renderer/TokenRenderer';
+import { VisionRenderer } from '../renderer/VisionRenderer';
 import { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
 import { SceneStore } from '../scene/SceneStore';
 import { ZOOM_STEP } from './CoordinateSystem';
 import { EditorController } from '../editor/EditorController';
+import { computeAllVision } from '../systems/VisionSystem';
+import { computeAllLighting } from '../systems/LightingSystem';
 import type { EditorTool } from '../scene/SceneTypes';
 
 export type DebugStats = {
@@ -20,6 +27,8 @@ type EngineOptions = {
   container: HTMLElement;
   onDebugUpdate?: (stats: DebugStats) => void;
   onActiveToolChange?: (tool: EditorTool) => void;
+  onSelectionChange?: (id: string | null) => void;
+  onSceneChange?: () => void;
 };
 
 export class VttEngine {
@@ -31,6 +40,11 @@ export class VttEngine {
   private worldLayer: Container;
   private gridRenderer: GridRenderer;
   private floorRenderer: FloorRenderer;
+  private wallRenderer: WallRenderer;
+  private doorRenderer: DoorRenderer;
+  private lightRenderer: LightRenderer;
+  private tokenRenderer: TokenRenderer;
+  private visionRenderer: VisionRenderer;
   private previewRenderer: EditorPreviewRenderer;
   private editor: EditorController;
 
@@ -61,11 +75,25 @@ export class VttEngine {
 
     this.worldLayer = new Container();
     this.worldLayer.name = 'worldLayer';
-    this.worldLayer.zIndex = 0;
+    this.worldLayer.zIndex = 1;
+    this.worldLayer.sortableChildren = true;
     this.stageRoot.addChild(this.worldLayer);
 
-    this.floorRenderer = new FloorRenderer(this.worldLayer);
-    this.previewRenderer = new EditorPreviewRenderer(this.worldLayer);
+    this.floorRenderer = new FloorRenderer(this.stageRoot);
+    this.floorRenderer.getContainer().zIndex = 3;
+    this.wallRenderer = new WallRenderer(this.stageRoot);
+    this.wallRenderer.getContainer().zIndex = 5;
+    this.doorRenderer = new DoorRenderer(this.stageRoot);
+    this.doorRenderer.getContainer().zIndex = 6;
+    this.lightRenderer = new LightRenderer(this.stageRoot);
+    this.lightRenderer.getContainer().zIndex = 7;
+    this.tokenRenderer = new TokenRenderer(this.stageRoot);
+    this.tokenRenderer.getContainer().zIndex = 8;
+    this.visionRenderer = new VisionRenderer(this.stageRoot);
+    this.visionRenderer.getContainer().zIndex = 9;
+    this.previewRenderer = new EditorPreviewRenderer(this.stageRoot);
+    this.previewRenderer.getContainer().zIndex = 10;
+    this.previewRenderer.setCamera(this.camera);
     this.gridRenderer = new GridRenderer(this.stageRoot);
 
     this.editor = new EditorController({
@@ -73,10 +101,23 @@ export class VttEngine {
       scene: this.sceneStore,
       preview: this.previewRenderer,
       onActiveToolChange: options.onActiveToolChange,
+      onSelectionChange: (id) => {
+        this.wallRenderer.setSelection(id);
+        this.doorRenderer.setSelection(id);
+        this.lightRenderer.setSelection(id);
+        this.tokenRenderer.setSelection(id);
+        options.onSelectionChange?.(id);
+      },
     });
 
     this.sceneUnsubscribe = this.sceneStore.subscribe(() => {
       this.floorRenderer.markDirty();
+      this.wallRenderer.markDirty();
+      this.doorRenderer.markDirty();
+      this.lightRenderer.markDirty();
+      this.tokenRenderer.markDirty();
+      this.visionRenderer.markDirty();
+      options.onSceneChange?.();
     });
 
     this.handleWheelBound = (e) => this.handleWheel(e);
@@ -101,6 +142,7 @@ export class VttEngine {
       antialias: true,
       autoDensity: true,
       resolution: window.devicePixelRatio || 1,
+      roundPixels: true,
     });
     options.container.appendChild(app.canvas);
     return new VttEngine(app, options);
@@ -120,6 +162,16 @@ export class VttEngine {
 
   setActiveTool(id: EditorTool): void {
     this.editor.setActiveTool(id);
+  }
+
+  setDebugOptions(opts: { showVision?: boolean; showCollision?: boolean }): void {
+    if (opts.showVision !== undefined) {
+      this.visionRenderer.setDebugMode(opts.showVision);
+    }
+    if (opts.showCollision !== undefined) {
+      this.wallRenderer.setDebugMode(opts.showCollision);
+    }
+    this.renderFrame();
   }
 
   getDebugStats(): DebugStats {
@@ -284,12 +336,19 @@ export class VttEngine {
   private applyWorldTransform(): void {
     const cs = this.camera.getState();
     const bounds = this.camera.getBounds();
-    const pivotX = Math.round(bounds.viewportWidth / 2);
-    const pivotY = Math.round(bounds.viewportHeight / 2);
+    const zoom = cs.zoom;
+    const vpCx = Math.round(bounds.viewportWidth / 2);
+    const vpCy = Math.round(bounds.viewportHeight / 2);
 
-    this.worldLayer.position.set(pivotX, pivotY);
-    this.worldLayer.scale.set(cs.zoom, cs.zoom);
-    this.worldLayer.pivot.set(Math.round(cs.x), Math.round(cs.y));
+    const camX = Math.round(cs.x);
+    const camY = Math.round(cs.y);
+
+    const cssSubX = cssSubPixelSnap(camX, zoom);
+    const cssSubY = cssSubPixelSnap(camY, zoom);
+
+    this.worldLayer.position.set(vpCx + cssSubX, vpCy + cssSubY);
+    this.worldLayer.scale.set(zoom, zoom);
+    this.worldLayer.pivot.set(camX, camY);
   }
 
   private startTicker(): void {
@@ -300,7 +359,26 @@ export class VttEngine {
 
   private renderFrame(): void {
     this.gridRenderer.update(this.camera);
-    this.floorRenderer.update(this.sceneStore.snapshot(), this.camera);
+    const snapshot = this.sceneStore.snapshot();
+    const selectionId = this.editor.getSelection();
+    this.tokenRenderer.setSelection(selectionId);
+    this.wallRenderer.setSelection(selectionId);
+    this.doorRenderer.setSelection(selectionId);
+    
+    // Compute vision polygons
+    const visionResults = computeAllVision(snapshot);
+    this.visionRenderer.setVisionResults(visionResults);
+    
+    // Compute lighting polygons
+    const lightResults = computeAllLighting(snapshot);
+    this.lightRenderer.setLightResults(lightResults);
+    
+    this.floorRenderer.update(snapshot, this.camera);
+    this.wallRenderer.update(snapshot, this.camera, selectionId);
+    this.doorRenderer.update(snapshot, this.camera, selectionId);
+    this.lightRenderer.update(snapshot, this.camera, selectionId);
+    this.tokenRenderer.update(snapshot, this.camera, selectionId);
+    this.visionRenderer.update(this.camera);
   }
 
   private emitDebug(): void {
@@ -324,10 +402,29 @@ export class VttEngine {
 
     this.editor.destroy();
     this.previewRenderer.destroy();
+    this.visionRenderer.destroy();
+    this.lightRenderer.destroy();
+    this.doorRenderer.destroy();
+    this.tokenRenderer.destroy();
+    this.wallRenderer.destroy();
     this.floorRenderer.destroy();
     this.gridRenderer.destroy();
 
     this.app.destroy(true, { children: true, texture: true });
     if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
   }
+}
+
+/**
+ * Computes a CSS-px subpixel translation (< |0.5| px) to add to worldLayer position.
+ * Ensures that grid-aligned world positions (multiples of GRID_SIZE) land on integer
+ * CSS pixel edges after the zoom*translate composite transform, eliminating anti-aliased
+ * "chopped top/left 1px edge" artifacts when zoom is not integer and pan is fractional
+ * relative to device pixel grid.
+ */
+function cssSubPixelSnap(camWorld: number, zoom: number): number {
+  const cssRaw = -camWorld * zoom;
+  const cssRounded = Math.round(cssRaw);
+  const frac = cssRaw - cssRounded;
+  return -frac;
 }

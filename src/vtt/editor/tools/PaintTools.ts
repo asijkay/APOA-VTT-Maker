@@ -3,6 +3,7 @@ import { GRID_SIZE, worldToGrid, type Point2 } from '../../engine/CoordinateSyst
 import type { EditorTool } from '../../scene/SceneTypes';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import type { PreviewFloorCell } from '../../renderer/EditorPreviewRenderer';
+import { resolveCircleAgainstSceneWalls } from '../../geometry/collision';
 
 export function screenCell(sx: number, sy: number, camera: Camera): { gx: number; gy: number } {
   const w = camera.screenToWorld(sx, sy);
@@ -161,6 +162,16 @@ export class SelectTool implements EditorToolController {
   private ctx?: ToolContext;
   private lastCell: { gx: number; gy: number } | null = null;
 
+  private dragToken: {
+    id: string;
+    radius: number;
+    offX: number;
+    offY: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null = null;
+
   attach(ctx: ToolContext): void {
     this.ctx = ctx;
   }
@@ -168,18 +179,67 @@ export class SelectTool implements EditorToolController {
   deactivate(): void {
     this.ctx?.preview.clear();
     this.lastCell = null;
+    this.dragToken = null;
   }
 
   onPointer(e: ToolPointerEvent): void {
     if (!this.ctx) return;
-    const w: Point2 = { x: e.worldX, y: e.worldY };
-    void w;
     const g = worldToGrid({ x: e.worldX, y: e.worldY });
-    if (!this.lastCell || this.lastCell.gx !== g.gx || this.lastCell.gy !== g.gy) {
-      this.lastCell = g;
-      if (e.type !== 'pointerup' && e.type !== 'pointercancel') {
+
+    if (e.type === 'pointerdown' && e.button === 0) {
+      const tok = this.ctx.scene.findTokenNear(e.worldX, e.worldY, 30, 0);
+      if (tok) {
+        const t = this.ctx.scene.findTokenById(tok.id);
+        if (t) {
+          this.ctx.selection.set(tok.id);
+          this.dragToken = {
+            id: tok.id,
+            radius: t.radius,
+            offX: e.worldX - t.x,
+            offY: e.worldY - t.y,
+            startX: t.x,
+            startY: t.y,
+            moved: false,
+          };
+          return;
+        }
+      }
+      const hit = this.ctx.scene.findNearestWall(e.worldX, e.worldY, 25, 0);
+      if (hit) this.ctx.selection.set(hit.id);
+      else this.ctx.selection.set(null);
+      this.dragToken = null;
+      return;
+    }
+
+    if (e.type === 'pointermove') {
+      if (this.dragToken) {
+        const targetX = e.worldX - this.dragToken.offX;
+        const targetY = e.worldY - this.dragToken.offY;
+        const snap = this.ctx.scene.snapshot();
+        const resolved = resolveCircleAgainstSceneWalls(
+          targetX,
+          targetY,
+          this.dragToken.radius,
+          snap,
+          { elevation: 0, wallThickness: 4 },
+        );
+        const moved =
+          Math.abs(resolved.x - this.dragToken.startX) > 1e-3 ||
+          Math.abs(resolved.y - this.dragToken.startY) > 1e-3;
+        if (moved) this.dragToken.moved = true;
+        this.ctx.scene.updateToken(this.dragToken.id, { x: resolved.x, y: resolved.y });
+        return;
+      }
+      if (!this.lastCell || this.lastCell.gx !== g.gx || this.lastCell.gy !== g.gy) {
+        this.lastCell = g;
         this.ctx.preview.showGridCursor(g.gx, g.gy, 'select');
       }
+      return;
+    }
+
+    if (e.type === 'pointerup' || e.type === 'pointercancel') {
+      this.dragToken = null;
+      return;
     }
   }
 }
