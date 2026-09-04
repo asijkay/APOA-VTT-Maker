@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import type { Camera } from '../engine/Camera';
 import { screenRect } from './FloorRenderer';
 
@@ -20,6 +20,7 @@ export type PreviewWallSegment = {
 export class EditorPreviewRenderer {
   private container: Container;
   private graphics: Graphics;
+  private rulerText: Text;
   private _camera: Camera | null = null;
 
   constructor(stage: Container) {
@@ -27,6 +28,10 @@ export class EditorPreviewRenderer {
     this.container.name = 'editor.previews';
     this.graphics = new Graphics();
     this.container.addChild(this.graphics);
+    this.rulerText = new Text({ text: '', style: { fontFamily: 'sans-serif', fontSize: 14, fill: 0xffffff, stroke: { color: 0x000000, width: 3 } } });
+    this.rulerText.anchor.set(0.5);
+    this.rulerText.visible = false;
+    this.container.addChild(this.rulerText);
     stage.addChild(this.container);
   }
 
@@ -36,6 +41,7 @@ export class EditorPreviewRenderer {
 
   clear(): void {
     this.graphics.clear();
+    this.rulerText.visible = false;
   }
 
   private cam(): Camera {
@@ -123,12 +129,32 @@ export class EditorPreviewRenderer {
       .stroke({ width: 1, color: 0x63b3ed, alpha: 0.8, alignment: 0 });
   }
 
+  showRuler(x1: number, y1: number, x2: number, y2: number, text: string): void {
+    this.graphics.clear();
+    const cam = this.cam();
+    const p1 = cam.worldToScreen(x1, y1);
+    const p2 = cam.worldToScreen(x2, y2);
+    
+    this.graphics
+      .moveTo(p1.x, p1.y)
+      .lineTo(p2.x, p2.y)
+      .stroke({ width: 2, color: 0xffffff, alpha: 0.8, alignment: 0.5 })
+      .circle(p1.x, p1.y, 4).fill(0xffffff)
+      .circle(p2.x, p2.y, 4).fill(0xffffff);
+      
+    this.rulerText.text = text;
+    this.rulerText.x = (p1.x + p2.x) / 2;
+    this.rulerText.y = (p1.y + p2.y) / 2 - 15;
+    this.rulerText.visible = true;
+  }
+
   getContainer(): Container {
     return this.container;
   }
 
   destroy(): void {
     this.graphics.destroy();
+    this.rulerText.destroy();
     this.container.destroy();
   }
 }

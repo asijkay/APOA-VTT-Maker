@@ -27,6 +27,7 @@ export type Door = {
   state: 'open' | 'closed';
   locked: boolean;
   hidden: boolean;
+  swingDirection?: 1 | -1;
 };
 
 export type Window = {
@@ -90,7 +91,8 @@ export type EditorTool =
   | 'window'
   | 'light'
   | 'token'
-  | 'image';
+  | 'image'
+  | 'ruler';
 
 export function createEmptyScene(): Scene {
   return {

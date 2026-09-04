@@ -1,8 +1,13 @@
-# APOA VTT Maker
+# APOA VTT Maker (v0.2.2)
 
-A browser-based Virtual Tabletop (VTT) where **map creation and gameplay happen in the same application**.
+A browser-based Virtual Tabletop (VTT) prototype where map creation and VTT gameplay happen in the same environment.
 
-> **Your map is an interactive game environment — not a background image.**
+## Current Milestone
+
+**Milestone 7: v0.2.2 Complete**
+- Added Ruler Tool, Map Background Images, and Wall Dragging.
+- Improved map size configurations (min 1x1, discrete update button) and door dimensions.
+- Changed UI terminology from "World Units" (wu) to "Pixels" (px).
 
 ---
 
@@ -62,7 +67,7 @@ npm run lint        # ESLint
 
 ---
 
-## Features (v0.1.0)
+## Features (v0.1.1)
 
 ### Editor Tools
 

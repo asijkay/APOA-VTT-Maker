@@ -106,7 +106,7 @@ export class DoorRenderer {
     if (door.state === 'closed') {
       this.drawClosedDoor(sp1, sp2, thickness, door, isSelected);
     } else {
-      this.drawOpenDoor(sp1, sp2, doorLenPx, thickness, isSelected);
+      this.drawOpenDoor(sp1, sp2, doorLenPx, thickness, isSelected, door.swingDirection ?? 1);
     }
 
     if (door.locked) {
@@ -154,6 +154,7 @@ export class DoorRenderer {
     doorLenPx: number,
     thickness: number,
     isSelected: boolean,
+    swingDirection: number,
   ): void {
     const g = this.graphics;
     const color = DoorRenderer.DOOR_OPEN_COLOR;
@@ -164,7 +165,7 @@ export class DoorRenderer {
     const radius = doorLenPx;
 
     const angleAlongWall = Math.atan2(sp1.y - sp2.y, sp1.x - sp2.x);
-    const arcDir = -1; // -1 for counterclockwise swing
+    const arcDir = -1 * swingDirection; // Swing direction modifier
     const startAngle = angleAlongWall;
     const endAngle = angleAlongWall + arcDir * (Math.PI / 2);
 

@@ -6,13 +6,15 @@ import { opBatch } from '../../scene/UndoManager';
 import type { Operation } from '../../scene/UndoManager';
 
 type DragObject = {
-  type: 'token' | 'light' | 'door' | 'window' | 'image';
+  type: 'token' | 'light' | 'door' | 'window' | 'image' | 'wall';
   id: string;
   offX: number;
   offY: number;
   startX: number;
   startY: number;
   radius?: number; // for token collision
+  startX2?: number; // for walls
+  startY2?: number; // for walls
 };
 
 export class SelectTool implements EditorToolController {
@@ -44,15 +46,18 @@ export class SelectTool implements EditorToolController {
     const g = worldToGrid({ x: e.worldX, y: e.worldY }, gridSize);
 
     if (e.type === 'pointerdown' && e.button === 0) {
-      if (this.ctx.viewMode === 'player') {
-        this.ctx.selection.clear();
-        this.dragContext = null;
-        return;
-      }
-
       // 1. Try to find an object under cursor
       const hit = this.findObjectUnderCursor(e.worldX, e.worldY);
       
+      // Player mode: only allow selecting tokens
+      if (this.ctx.viewMode === 'player') {
+        if (!hit || hit.type !== 'token') {
+          this.ctx.selection.clear();
+          this.dragContext = null;
+          return;
+        }
+      }
+
       if (hit) {
         // If shift clicked, toggle selection
         if (e.shiftKey) {
@@ -87,15 +92,23 @@ export class SelectTool implements EditorToolController {
       }
 
       // 2. Try walls
-      const wallHit = this.ctx.scene.findNearestWall(e.worldX, e.worldY, 25, 0);
-      if (wallHit) {
-        if (e.shiftKey) this.ctx.selection.toggle(wallHit.id);
-        else this.ctx.selection.setSingle(wallHit.id);
+      if (this.ctx.viewMode !== 'player') {
+        const wallHit = this.ctx.scene.findNearestWall(e.worldX, e.worldY, 25, 0);
+        if (wallHit) {
+          if (e.shiftKey) this.ctx.selection.toggle(wallHit.id);
+          else this.ctx.selection.setSingle(wallHit.id);
+          this.dragContext = null;
+          return;
+        }
+      }
+
+      // 3. Clicked on empty space -> start box select
+      if (this.ctx.viewMode === 'player') {
+        this.ctx.selection.clear();
         this.dragContext = null;
         return;
       }
 
-      // 3. Clicked on empty space -> start box select
       if (!e.shiftKey) {
         this.ctx.selection.clear();
       }
@@ -150,6 +163,18 @@ export class SelectTool implements EditorToolController {
             this.ctx.scene.updateLight(obj.id, { x: targetX, y: targetY });
           } else if (obj.type === 'image') {
             this.ctx.scene.updateImage(obj.id, { x: targetX, y: targetY });
+          } else if (obj.type === 'wall') {
+            const finalWall = this.ctx.scene.findWallById(obj.id);
+            if (finalWall) {
+              const dx = cx - this.dragContext.startX;
+              const dy = cy - this.dragContext.startY;
+              this.ctx.scene.updateWall(obj.id, {
+                x1: obj.startX + dx,
+                y1: obj.startY + dy,
+                x2: obj.startX2! + dx,
+                y2: obj.startY2! + dy,
+              });
+            }
           } else if (obj.type === 'door' || obj.type === 'window') {
             const db = obj.type === 'door' ? this.ctx.scene.findDoorById(obj.id) : this.ctx.scene.findWindowById(obj.id);
             if (db) {
@@ -263,6 +288,25 @@ export class SelectTool implements EditorToolController {
                 inverse: (s) => s.updateImage(id, { x: startX, y: startY }),
               });
             }
+          } else if (obj.type === 'wall') {
+            const finalWall = this.ctx.scene.findWallById(obj.id);
+            if (finalWall) {
+              const { startX, startY, startX2, startY2, id } = obj;
+              if (this.ctx.snapTokens) {
+                const gridSize = this.ctx.scene.snapshot().gridSize;
+                const snappedX1 = Math.round(finalWall.x1 / gridSize) * gridSize;
+                const snappedY1 = Math.round(finalWall.y1 / gridSize) * gridSize;
+                const snappedX2 = Math.round(finalWall.x2 / gridSize) * gridSize;
+                const snappedY2 = Math.round(finalWall.y2 / gridSize) * gridSize;
+                this.ctx.scene.updateWall(obj.id, { x1: snappedX1, y1: snappedY1, x2: snappedX2, y2: snappedY2 });
+              }
+              const snappedWall = this.ctx.scene.findWallById(obj.id)!;
+              ops.push({
+                label: 'Move Wall',
+                apply: (s) => s.updateWall(id, { x1: snappedWall.x1, y1: snappedWall.y1, x2: snappedWall.x2, y2: snappedWall.y2 }),
+                inverse: (s) => s.updateWall(id, { x1: startX, y1: startY, x2: startX2!, y2: startY2! }),
+              });
+            }
           } else if (obj.type === 'door') {
             const finalDoor = this.ctx.scene.findDoorById(obj.id);
             if (finalDoor) {
@@ -336,6 +380,9 @@ export class SelectTool implements EditorToolController {
     const w = this.ctx.scene.findWindowById(id);
     if (w) return { type: 'window', id, offX: 0, offY: 0, startX: w.position, startY: 0 };
     
+    const wall = this.ctx.scene.findWallById(id);
+    if (wall) return { type: 'wall', id, offX: 0, offY: 0, startX: wall.x1, startY: wall.y1, startX2: wall.x2, startY2: wall.y2 };
+
     return null;
   }
 }

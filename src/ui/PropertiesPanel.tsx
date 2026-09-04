@@ -1,6 +1,6 @@
 import type { VttEngine } from '@/vtt/engine/VttEngine';
 import type { Door, Light, Token, Wall, Window as VttWindow, MapImage } from '@/vtt/scene/SceneTypes';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { opUpdateSceneSettings } from '@/vtt/scene/UndoManager';
 
 type Props = {
@@ -76,6 +76,53 @@ const bigButtonStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: 600,
 });
 
+function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
+  const [w, setW] = useState(snap.mapWidth.toString());
+  const [h, setH] = useState(snap.mapHeight.toString());
+
+  useEffect(() => {
+    setW(snap.mapWidth.toString());
+    setH(snap.mapHeight.toString());
+  }, [snap.mapWidth, snap.mapHeight]);
+
+  const handleUpdate = () => {
+    const nw = Math.max(1, Math.min(200, parseInt(w) || 1));
+    const nh = Math.max(1, Math.min(200, parseInt(h) || 1));
+    if (nw !== snap.mapWidth || nh !== snap.mapHeight) {
+      engine.editor.getUndoManager().execute(
+        opUpdateSceneSettings({ mapWidth: nw, mapHeight: nh }, { mapWidth: snap.mapWidth, mapHeight: snap.mapHeight })
+      );
+    }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <div style={sectionTitle}>Map Settings</div>
+      <div style={rowBetween}>
+        <span style={{ color: '#a0aec0', fontSize: 11 }}>Width</span>
+        <input
+          type="number" min={1} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
+          value={w}
+          onChange={e => setW(e.target.value)}
+        />
+        <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
+      </div>
+      <div style={rowBetween}>
+        <span style={{ color: '#a0aec0', fontSize: 11 }}>Height</span>
+        <input
+          type="number" min={1} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
+          value={h}
+          onChange={e => setH(e.target.value)}
+        />
+        <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
+      </div>
+      <button style={{ ...bigButtonStyle(false), width: '100%', marginTop: 8 }} onClick={handleUpdate}>
+        Update Map
+      </button>
+    </div>
+  );
+}
+
 export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: Props) {
   void sceneVersion;
 
@@ -95,39 +142,7 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
 
   if (!selectedId) {
     const snap = sceneStore.snapshot();
-    return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Map Settings</div>
-        <div style={rowBetween}>
-          <span style={{ color: '#a0aec0', fontSize: 11 }}>Width</span>
-          <input
-            type="number" min={5} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
-            value={snap.mapWidth}
-            onChange={e => {
-              const v = Math.max(5, Math.min(200, Number(e.target.value)));
-              engine.editor.getUndoManager().execute(
-                opUpdateSceneSettings({ mapWidth: v }, { mapWidth: snap.mapWidth })
-              );
-            }}
-          />
-          <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
-        </div>
-        <div style={rowBetween}>
-          <span style={{ color: '#a0aec0', fontSize: 11 }}>Height</span>
-          <input
-            type="number" min={5} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
-            value={snap.mapHeight}
-            onChange={e => {
-              const v = Math.max(5, Math.min(200, Number(e.target.value)));
-              engine.editor.getUndoManager().execute(
-                opUpdateSceneSettings({ mapHeight: v }, { mapHeight: snap.mapHeight })
-              );
-            }}
-          />
-          <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
-        </div>
-      </div>
-    );
+    return <MapSettingsPanel snap={snap} engine={engine} />;
   }
   const wall   = sceneStore.findWallById(selectedId);
   const door   = sceneStore.findDoorById(selectedId);
@@ -178,9 +193,17 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
             onClick={() => handleUpdateDoor({ state: 'open' })}>↩️ Open</button>
         </div>
 
+        <button style={{
+          ...bigButtonStyle(false),
+          padding: '4px 8px', fontSize: 11, marginTop: 4, opacity: door.state === 'open' ? 1 : 0.5
+        }}
+          onClick={() => handleUpdateDoor({ swingDirection: (door.swingDirection === -1 ? 1 : -1) })}>
+          🔄 Flip Swing Direction
+        </button>
+
         <div style={labelRow}>
-          <span>Width: {door.width}wu</span>
-          <input type="range" min={50} max={200} step={10} style={rangeStyle}
+          <span>Width: {door.width}px</span>
+          <input type="range" min={10} max={200} step={5} style={rangeStyle}
             value={door.width}
             onChange={e => handleUpdateDoor({ width: Number(e.target.value) })} />
         </div>
@@ -208,7 +231,7 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
           Vision &amp; light pass through. Movement blocked.
         </div>
         <div style={labelRow}>
-          <span>Width: {win.width}wu</span>
+          <span>Width: {win.width}px</span>
           <input type="range" min={10} max={120} step={5} style={rangeStyle}
             value={win.width}
             onChange={e => handleUpdateWin({ width: Number(e.target.value) })} />
@@ -226,7 +249,7 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
       <div style={panelStyle}>
         <div style={sectionTitle}>Light</div>
         <div style={labelRow}>
-          <span>Radius: {light.radius}wu</span>
+          <span>Radius: {light.radius}px</span>
           <input type="range" min={10} max={1000} step={10} style={rangeStyle}
             value={light.radius}
             onChange={e => handleUpdateLight({ radius: Number(e.target.value) })} />
@@ -297,7 +320,7 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
 
         {/* Size */}
         <div style={labelRow}>
-          <span>Size radius: {token.radius}wu</span>
+          <span>Size radius: {token.radius}px</span>
           <input type="range" min={5} max={100} step={1} style={rangeStyle}
             value={token.radius}
             onChange={e => handleUpdateToken({ radius: Number(e.target.value) })} />
@@ -305,7 +328,7 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
 
         {/* Vision */}
         <div style={labelRow}>
-          <span>Vision radius: {token.visionRadius}wu</span>
+          <span>Vision radius: {token.visionRadius}px</span>
           <input type="range" min={0} max={2000} step={10} style={rangeStyle}
             value={token.visionRadius}
             onChange={e => handleUpdateToken({ visionRadius: Number(e.target.value) })} />
@@ -316,6 +339,17 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
 
   // ── Image ─────────────────────────────────────────────────────────────────
   if (img) {
+    const handleMapImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (dataUrl) handleUpdateImage({ url: dataUrl });
+      };
+      reader.readAsDataURL(file);
+    };
+
     return (
       <div style={panelStyle}>
         <div style={sectionTitle}>Image</div>
@@ -325,6 +359,12 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
             value={img.url ?? ''}
             onChange={e => handleUpdateImage({ url: e.target.value })}
             placeholder="https://..." />
+        </div>
+        <div style={labelRow}>
+          <span>Upload</span>
+          <input type="file" accept="image/*"
+            style={{ fontSize: 11, color: '#718096' }}
+            onChange={handleMapImageUpload} />
         </div>
         <div style={labelRow}>
           <span>Width: {img.width}</span>

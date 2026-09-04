@@ -7,6 +7,38 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.2] - 2026-09-04
+
+### Changed
+- **Terminology:** Changed all UI labels from "wu" (World Units) to "px" (Pixels) for better user understanding. The underlying engine logic remains identical (1 wu = 1 screen pixel at 1.0 zoom).
+
+---
+
+## [0.2.1] - 2026-09-04
+
+### Changed
+- **Map Settings**: Map dimensions can now go as low as 1x1. Changes are applied via an "Update Map" button instead of firing immediately upon typing.
+- **Doors**: Default door width changed to 25wu (minimum adjustable to 10wu).
+
+---
+
+## [0.2.0] – 2026-09-04
+
+### Added
+- **Ruler Tool:** Draw temporary lines to measure distances on the map (hotkey `R`).
+- **Map Background Uploads:** The Image tool now supports uploading local files to serve as map backgrounds.
+- **Wall Moving:** Walls can now be selected (via box selection) and dragged along with other map objects.
+
+---
+
+## [0.1.1] – 2026-09-04
+
+### Added
+- **Door Swing Direction:** Added a "Flip Swing Direction" button to the door properties panel to easily change which way the door swings open visually.
+- **Player View Restrictions:** Tokens can now be moved by players in Player View, while scene mutations (walls, floors, deleting objects) remain completely blocked.
+
+---
+
 ## [0.1.0] – 2026-09-04
 
 ### Summary
@@ -140,11 +172,3 @@ Shown on right side; content changes with selection:
 - Mobile not supported
 
 ---
-
-## [Unreleased]
-
-### Planned for 0.2.0
-- Diagonal walls
-- Improved door/window placement (min-width enforcement, correct open-arc direction)
-- Proper token collision prevention (no jumping over walls)
-- GM vs Player view enforcement (player cannot use editor tools)

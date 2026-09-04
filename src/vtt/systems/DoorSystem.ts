@@ -13,7 +13,7 @@ export class DoorSystem {
     scene: Scene,
     x: number,
     y: number,
-    width: number = 20,
+    width: number = 25,
   ): Door | null {
     const nearest = findNearestWall(x, y, scene.walls, 30);
     if (!nearest) return null;
@@ -30,6 +30,7 @@ export class DoorSystem {
       state: 'closed',
       locked: false,
       hidden: false,
+      swingDirection: 1,
     };
 
     return door;

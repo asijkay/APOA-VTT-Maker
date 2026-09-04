@@ -293,7 +293,7 @@ export class SceneStore {
       x: input.x,
       y: input.y,
       elevation: input.elevation ?? 0,
-      radius: input.radius ?? 15,
+      radius: input.radius ?? 10,
       visionRadius: input.visionRadius ?? 300,
       name: input.name ?? `Token ${tokenNumber}`,
       imageUrl: input.imageUrl,

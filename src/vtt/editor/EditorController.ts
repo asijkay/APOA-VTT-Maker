@@ -12,6 +12,7 @@ import { LightTool } from './tools/LightTool';
 import { TokenTool } from './tools/TokenTool';
 import { ImageTool } from './tools/ImageTool';
 import { WindowTool } from './tools/WindowTool';
+import { RulerTool } from './tools/RulerTool';
 import { SelectionState, type SelectionListener } from './SelectionState';
 import { UndoManager, opBatch, opRemoveWall, opRemoveToken, opRemoveDoor, opRemoveLight, opRemoveWindow, opRemoveImage } from '../scene/UndoManager';
 
@@ -67,8 +68,9 @@ export class EditorController {
     this.registerTool(new LightTool());
     this.registerTool(new TokenTool());
     this.registerTool(new ImageTool());
+    this.registerTool(new RulerTool());
 
-    const cameraRef = this.camera;
+    this.activeTool = this.tools.get(this.activeToolId)!;
     const selectionRef = this.selection;
     this.ctx = {
       camera: this.camera,
@@ -79,14 +81,11 @@ export class EditorController {
       snapTokens: this._snapTokens,
       viewMode: this._viewMode,
       world: {
-        screenToWorld: (sx, sy) => cameraRef.screenToWorld(sx, sy),
+        screenToWorld: (sx, sy) => this.camera.screenToWorld(sx, sy),
       },
     };
     void selectionRef;
 
-    const initial = this.tools.get(this.activeToolId);
-    if (!initial) throw new Error('No select tool registered');
-    this.activeTool = initial;
     this.activeTool.attach(this.ctx);
 
     this.handleKeyDownBound = (e) => this.handleKeyDown(e);
@@ -121,6 +120,9 @@ export class EditorController {
   setViewMode(mode: 'gm' | 'player'): void {
     this._viewMode = mode;
     this.ctx.viewMode = mode;
+    if (mode === 'player') {
+      this.setActiveTool('select');
+    }
   }
 
   onCanvasPointerDown(e: {
@@ -324,6 +326,8 @@ export class EditorController {
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (this._viewMode === 'player') return;
+      
       const selectedIds = this.selection.get();
       if (selectedIds.size > 0) {
         const ops = [];
@@ -374,6 +378,8 @@ export class EditorController {
         return;
       }
     }
+    if (this._viewMode === 'player') return; // no tool hotkeys in player mode
+
     switch (e.key.toLowerCase()) {
       case 'v':
         this.setActiveTool('select');
@@ -383,6 +389,12 @@ export class EditorController {
         break;
       case 'e':
         this.setActiveTool('erase-floor');
+        break;
+      case 'm':
+        this.setActiveTool('image');
+        break;
+      case 'r':
+        this.setActiveTool('ruler');
         break;
       case 'w':
         this.setActiveTool('wall');
