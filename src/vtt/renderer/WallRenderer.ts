@@ -1,7 +1,6 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Scene, Wall } from '../scene/SceneTypes';
 import type { Camera } from '../engine/Camera';
-import { screenRect } from './FloorRenderer';
 import { getEffectiveMovementSegments } from '../geometry/doorGeometry';
 
 const WALL_THICKNESS = 4;
@@ -13,7 +12,7 @@ export class WallRenderer {
   private graphics: Graphics;
   private selectionOverlay: Graphics;
   private lastWallCount = -1;
-  private lastSelectionId: string | null = null;
+  private lastSelectionIds: ReadonlySet<string> = new Set();
   private lastZoom: number = -1;
   private lastCamX: number = -Infinity;
   private lastCamY: number = -Infinity;
@@ -56,13 +55,18 @@ export class WallRenderer {
     this.selectionDirty = true;
   }
 
-  setSelection(selectionId: string | null): void {
-    if (this.lastSelectionId === selectionId) return;
-    this.lastSelectionId = selectionId;
+  setSelection(selectionIds: ReadonlySet<string>, force: boolean = false): void {
+    if (
+      this.lastSelectionIds === selectionIds &&
+      !force
+    ) {
+      return;
+    }
+    this.lastSelectionIds = selectionIds;
     this.selectionDirty = true;
   }
 
-  update(scene: Scene, camera: Camera, selectionId: string | null): void {
+  update(scene: Scene, camera: Camera): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -79,10 +83,6 @@ export class WallRenderer {
       this.redrawAll(scene, camera);
       this.lastWallCount = scene.walls.length;
       this.dirty = false;
-      this.selectionDirty = true;
-    }
-    if (this.lastSelectionId !== selectionId) {
-      this.lastSelectionId = selectionId;
       this.selectionDirty = true;
     }
     if (this.selectionDirty) {
@@ -115,28 +115,29 @@ export class WallRenderer {
 
   private redrawSelection(scene: Scene, camera: Camera): void {
     this.selectionOverlay.clear();
-    if (!this.lastSelectionId) return;
-    const w: Wall | undefined = scene.walls.find((x) => x.id === this.lastSelectionId);
-    if (!w) return;
+    for (const w of scene.walls) {
+      const isSelected = this.lastSelectionIds.has(w.id);
+      if (isSelected) {
+        this.drawWallRect(
+          this.selectionOverlay,
+          w,
+          camera,
+          this.selectColor,
+          this.selectAlpha,
+          WALL_THICKNESS + SELECT_EXTRA * 2,
+        );
 
-    this.drawWallRect(
-      this.selectionOverlay,
-      w,
-      camera,
-      this.selectColor,
-      this.selectAlpha,
-      WALL_THICKNESS + SELECT_EXTRA * 2,
-    );
-
-    const drawEndpoint = (wx: number, wy: number) => {
-      const sp = camera.worldToScreen(wx, wy);
-      this.selectionOverlay
-        .circle(sp.x, sp.y, this.endpointRadiusCssPx)
-        .fill({ color: this.endpointColor, alpha: this.endpointAlpha })
-        .stroke({ width: 1, color: this.selectColor, alpha: this.selectAlpha });
-    };
-    drawEndpoint(w.x1, w.y1);
-    drawEndpoint(w.x2, w.y2);
+        const drawEndpoint = (wx: number, wy: number) => {
+          const sp = camera.worldToScreen(wx, wy);
+          this.selectionOverlay
+            .circle(sp.x, sp.y, this.endpointRadiusCssPx)
+            .fill({ color: this.endpointColor, alpha: this.endpointAlpha })
+            .stroke({ width: 1, color: this.selectColor, alpha: this.selectAlpha });
+        };
+        drawEndpoint(w.x1, w.y1);
+        drawEndpoint(w.x2, w.y2);
+      }
+    }
   }
 
   private drawWallRect(
@@ -147,27 +148,14 @@ export class WallRenderer {
     alpha: number,
     thickness: number,
   ): void {
-    const isHorizontal = w.y1 === w.y2;
-    const isVertical = w.x1 === w.x2;
-    if (!isHorizontal && !isVertical) return;
-    const h = thickness;
-    let rx1: number;
-    let ry1: number;
-    let rx2: number;
-    let ry2: number;
-    if (isHorizontal) {
-      rx1 = w.x1;
-      ry1 = w.y1 - h / 2;
-      rx2 = w.x2;
-      ry2 = w.y1 + h / 2;
-    } else {
-      rx1 = w.x1 - h / 2;
-      ry1 = w.y1;
-      rx2 = w.x1 + h / 2;
-      ry2 = w.y2;
-    }
-    const r = screenRect(camera, rx1, ry1, rx2, ry2);
-    g.rect(r.sx, r.sy, r.sw, r.sh).fill({ color, alpha });
+    const sp1 = camera.worldToScreen(w.x1, w.y1);
+    const sp2 = camera.worldToScreen(w.x2, w.y2);
+    
+    g.setStrokeStyle({ width: thickness, color, alpha, cap: 'butt' });
+    g.beginPath();
+    g.moveTo(sp1.x, sp1.y);
+    g.lineTo(sp2.x, sp2.y);
+    g.stroke();
   }
 
   getContainer(): Container {

@@ -6,7 +6,7 @@ type Props = {
   onDebugUpdate?: (stats: DebugStats) => void;
   activeTool: EditorTool;
   onActiveToolChange?: (tool: EditorTool) => void;
-  onSelectionChange?: (id: string | null) => void;
+  onSelectionChange?: (ids: ReadonlySet<string>) => void;
   onSceneChange?: () => void;
   engineRef?: React.MutableRefObject<VttEngine | null>;
 };

@@ -1,14 +1,16 @@
 import type { Camera } from '../../engine/Camera';
-import { GRID_SIZE, worldToGrid, type Point2 } from '../../engine/CoordinateSystem';
+import { worldToGrid, type Point2 } from '../../engine/CoordinateSystem';
 import type { EditorTool } from '../../scene/SceneTypes';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import type { PreviewFloorCell } from '../../renderer/EditorPreviewRenderer';
-import { resolveCircleAgainstSceneWalls } from '../../geometry/collision';
-import { opMoveToken } from '../../scene/UndoManager';
 
-export function screenCell(sx: number, sy: number, camera: Camera): { gx: number; gy: number } {
+export function screenCell(sx: number, sy: number, camera: Camera, gridSize: number, mapWidth: number, mapHeight: number): { gx: number; gy: number } {
   const w = camera.screenToWorld(sx, sy);
-  return worldToGrid(w);
+  const raw = worldToGrid(w, gridSize);
+  return {
+    gx: Math.max(0, Math.min(mapWidth - 1, raw.gx)),
+    gy: Math.max(0, Math.min(mapHeight - 1, raw.gy)),
+  };
 }
 
 abstract class FloorFamilyTool implements EditorToolController {
@@ -34,7 +36,8 @@ abstract class FloorFamilyTool implements EditorToolController {
   onPointer(e: ToolPointerEvent): void {
     if (!this.ctx) return;
     const { camera, preview } = this.ctx;
-    const cell = screenCell(e.screenX, e.screenY, camera);
+    const { gridSize, mapWidth, mapHeight } = this.ctx.scene.snapshot();
+    const cell = screenCell(e.screenX, e.screenY, camera, gridSize, mapWidth, mapHeight);
 
     if (e.type === 'pointerdown') {
       this.isDragging = true;
@@ -48,7 +51,7 @@ abstract class FloorFamilyTool implements EditorToolController {
       if (this.isDragging && this.dragStartCell) {
         this.touchLine(this.dragStartCell, cell);
       } else {
-        preview.showGridCursor(cell.gx, cell.gy, this.previewModeFor(cell.gx, cell.gy));
+        preview.showGridCursor(cell.gx, cell.gy, this.previewModeFor(cell.gx, cell.gy), gridSize);
       }
       return;
     }
@@ -60,7 +63,7 @@ abstract class FloorFamilyTool implements EditorToolController {
       this.isDragging = false;
       this.dragStartCell = null;
       this.lastTouched.clear();
-      preview.showGridCursor(cell.gx, cell.gy, this.previewModeFor(cell.gx, cell.gy));
+      preview.showGridCursor(cell.gx, cell.gy, this.previewModeFor(cell.gx, cell.gy), gridSize);
     }
   }
 
@@ -93,7 +96,7 @@ abstract class FloorFamilyTool implements EditorToolController {
         elevation: 0,
         mode: c.mode,
       }));
-      preview.showCells(previewCells);
+      preview.showCells(previewCells, scene.snapshot().gridSize);
     }
   }
 }
@@ -158,111 +161,7 @@ export class EraseFloorTool extends FloorFamilyTool {
   }
 }
 
-export class SelectTool implements EditorToolController {
-  readonly id: EditorTool = 'select';
-  private ctx?: ToolContext;
-  private lastCell: { gx: number; gy: number } | null = null;
 
-  private dragToken: {
-    id: string;
-    radius: number;
-    offX: number;
-    offY: number;
-    startX: number;
-    startY: number;
-    moved: boolean;
-  } | null = null;
-
-  attach(ctx: ToolContext): void {
-    this.ctx = ctx;
-  }
-
-  deactivate(): void {
-    this.ctx?.preview.clear();
-    this.lastCell = null;
-    this.dragToken = null;
-  }
-
-  onPointer(e: ToolPointerEvent): void {
-    if (!this.ctx) return;
-    const g = worldToGrid({ x: e.worldX, y: e.worldY });
-
-    if (e.type === 'pointerdown' && e.button === 0) {
-      const tok = this.ctx.scene.findTokenNear(e.worldX, e.worldY, 30, 0);
-      if (tok) {
-        const t = this.ctx.scene.findTokenById(tok.id);
-        if (t) {
-          this.ctx.selection.set(tok.id);
-          this.dragToken = {
-            id: tok.id,
-            radius: t.radius,
-            offX: e.worldX - t.x,
-            offY: e.worldY - t.y,
-            startX: t.x,
-            startY: t.y,
-            moved: false,
-          };
-          return;
-        }
-      }
-      const hit = this.ctx.scene.findNearestWall(e.worldX, e.worldY, 25, 0);
-      if (hit) this.ctx.selection.set(hit.id);
-      else this.ctx.selection.set(null);
-      this.dragToken = null;
-      return;
-    }
-
-    if (e.type === 'pointermove') {
-      if (this.dragToken) {
-        const targetX = e.worldX - this.dragToken.offX;
-        const targetY = e.worldY - this.dragToken.offY;
-        const snap = this.ctx.scene.snapshot();
-        const resolved = resolveCircleAgainstSceneWalls(
-          targetX,
-          targetY,
-          this.dragToken.radius,
-          snap,
-          { elevation: 0, wallThickness: 4 },
-        );
-        const moved =
-          Math.abs(resolved.x - this.dragToken.startX) > 1e-3 ||
-          Math.abs(resolved.y - this.dragToken.startY) > 1e-3;
-        if (moved) this.dragToken.moved = true;
-        this.ctx.scene.updateToken(this.dragToken.id, { x: resolved.x, y: resolved.y });
-        return;
-      }
-      if (!this.lastCell || this.lastCell.gx !== g.gx || this.lastCell.gy !== g.gy) {
-        this.lastCell = g;
-        this.ctx.preview.showGridCursor(g.gx, g.gy, 'select');
-      }
-      return;
-    }
-
-    if (e.type === 'pointerup' || e.type === 'pointercancel') {
-      if (this.dragToken && this.dragToken.moved) {
-        // Snap to grid if enabled
-        const t = this.ctx.scene.findTokenById(this.dragToken.id);
-        if (t && this.ctx.snapTokens) {
-          const gx = Math.floor(t.x / GRID_SIZE);
-          const gy = Math.floor(t.y / GRID_SIZE);
-          const snapped = cellCenter(gx, gy);
-          this.ctx.scene.updateToken(this.dragToken.id, { x: snapped.x, y: snapped.y });
-        }
-        // Record undo for the drag
-        const finalToken = this.ctx.scene.findTokenById(this.dragToken.id);
-        if (finalToken) {
-          const { startX, startY, id } = this.dragToken;
-          this.ctx.undoManager.pushOperation(
-            opMoveToken(id, finalToken.x, finalToken.y, startX, startY)
-          );
-        }
-      }
-      this.dragToken = null;
-      return;
-    }
-  }
-}
-
-export function cellCenter(gx: number, gy: number): Point2 {
-  return { x: gx * GRID_SIZE + GRID_SIZE / 2, y: gy * GRID_SIZE + GRID_SIZE / 2 };
+export function cellCenter(gx: number, gy: number, gridSize: number): Point2 {
+  return { x: gx * gridSize + gridSize / 2, y: gy * gridSize + gridSize / 2 };
 }

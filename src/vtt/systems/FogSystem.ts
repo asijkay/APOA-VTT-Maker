@@ -1,5 +1,4 @@
 import type { VisionResult } from './VisionSystem';
-import { GRID_SIZE } from '../engine/CoordinateSystem';
 import type { Point2 } from '../geometry/segments';
 
 /**
@@ -17,11 +16,11 @@ export class FogSystem {
    * Update the fog state from the current frame's vision results.
    * Newly visible cells are added to revealedCells.
    */
-  update(visionResults: VisionResult[]): void {
+  update(visionResults: VisionResult[], gridSize: number): void {
     this.currentlyVisibleCells = new Set<string>();
 
     for (const result of visionResults) {
-      const cells = this.polygonToGridCells(result.polygon);
+      const cells = this.polygonToGridCells(result.polygon, gridSize);
       for (const key of cells) {
         this.currentlyVisibleCells.add(key);
         this.revealedCells.add(key);
@@ -46,7 +45,7 @@ export class FogSystem {
    * Converts a visibility polygon to a set of grid cell keys using a simple
    * bounding-box scan + point-in-polygon test.
    */
-  private polygonToGridCells(polygon: Point2[]): string[] {
+  private polygonToGridCells(polygon: Point2[], gridSize: number): string[] {
     if (polygon.length < 3) return [];
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -57,17 +56,16 @@ export class FogSystem {
       if (p.y > maxY) maxY = p.y;
     }
 
-    const startGx = Math.floor(minX / GRID_SIZE) - 1;
-    const startGy = Math.floor(minY / GRID_SIZE) - 1;
-    const endGx = Math.ceil(maxX / GRID_SIZE) + 1;
-    const endGy = Math.ceil(maxY / GRID_SIZE) + 1;
+    const startGx = Math.floor(minX / gridSize) - 1;
+    const startGy = Math.floor(minY / gridSize) - 1;
+    const endGx = Math.ceil(maxX / gridSize) + 1;
+    const endGy = Math.ceil(maxY / gridSize) + 1;
 
     const cells: string[] = [];
     for (let gx = startGx; gx <= endGx; gx++) {
       for (let gy = startGy; gy <= endGy; gy++) {
-        // Test cell center
-        const cx = (gx + 0.5) * GRID_SIZE;
-        const cy = (gy + 0.5) * GRID_SIZE;
+        const cx = (gx + 0.5) * gridSize;
+        const cy = (gy + 0.5) * gridSize;
         if (this.pointInPolygon(cx, cy, polygon)) {
           cells.push(`${gx},${gy}`);
         }

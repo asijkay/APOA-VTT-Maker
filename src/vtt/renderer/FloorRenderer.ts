@@ -1,7 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Scene } from '../scene/SceneTypes';
 import type { Camera } from '../engine/Camera';
-import { GRID_SIZE } from '../engine/CoordinateSystem';
+
 
 type DirtyFlags = {
   full: boolean;
@@ -56,7 +56,7 @@ export class FloorRenderer {
 
   private redrawAll(scene: Scene, camera: Camera): void {
     this.graphics.clear();
-    const size = GRID_SIZE;
+    const size = scene.gridSize;
     const bounds = camera.getBounds();
     const pad = 1;
     const minGX = Math.floor(bounds.worldLeft / size) - pad;

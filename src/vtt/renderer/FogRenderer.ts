@@ -1,6 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Camera } from '../engine/Camera';
-import { GRID_SIZE } from '../engine/CoordinateSystem';
 
 /**
  * FogRenderer draws the fog-of-war overlay.
@@ -52,7 +51,7 @@ export class FogRenderer {
 
   markDirty(): void { this.dirty = true; }
 
-  update(camera: Camera): void {
+  update(camera: Camera, gridSize: number): void {
     if (!this.visible) {
       if (this.dirty) {
         this.graphics.clear();
@@ -93,19 +92,19 @@ export class FogRenderer {
     const topLeft = camera.screenToWorld(0, 0);
     const btmRight = camera.screenToWorld(vpW, vpH);
 
-    const startGx = Math.floor(topLeft.x / GRID_SIZE) - 1;
-    const startGy = Math.floor(topLeft.y / GRID_SIZE) - 1;
-    const endGx = Math.ceil(btmRight.x / GRID_SIZE) + 1;
-    const endGy = Math.ceil(btmRight.y / GRID_SIZE) + 1;
+    const startGx = Math.floor(topLeft.x / gridSize) - 1;
+    const startGy = Math.floor(topLeft.y / gridSize) - 1;
+    const endGx = Math.ceil(btmRight.x / gridSize) + 1;
+    const endGy = Math.ceil(btmRight.y / gridSize) + 1;
 
-    const cellSizePx = GRID_SIZE * cs.zoom;
+    const cellSizePx = gridSize * cs.zoom;
 
     for (let gx = startGx; gx <= endGx; gx++) {
       for (let gy = startGy; gy <= endGy; gy++) {
         const key = `${gx},${gy}`;
         if (this.visibleCells.has(key)) continue; // fully visible: no fog
 
-        const sp = camera.worldToScreen(gx * GRID_SIZE, gy * GRID_SIZE);
+        const sp = camera.worldToScreen(gx * gridSize, gy * gridSize);
 
         if (this.revealedCells.has(key)) {
           // Memory fog: dark semi-transparent

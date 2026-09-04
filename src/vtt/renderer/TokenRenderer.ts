@@ -24,7 +24,7 @@ export class TokenRenderer {
   private lastZoom = -1;
   private lastCamX: number = -Infinity;
   private lastCamY: number = -Infinity;
-  private lastSelectionId: string | null = null;
+  private selectionIds: ReadonlySet<string> = new Set();
   private dirty = true;
 
   private readonly fillColor = 0xf2a36b;
@@ -50,13 +50,13 @@ export class TokenRenderer {
 
   markDirty(): void { this.dirty = true; }
 
-  setSelection(selectionId: string | null): void {
-    if (this.lastSelectionId === selectionId) return;
-    this.lastSelectionId = selectionId;
+  setSelection(ids: ReadonlySet<string>): void {
+    if (this.selectionIds === ids) return;
+    this.selectionIds = ids;
     this.dirty = true;
   }
 
-  update(scene: Scene, camera: Camera, selectionId: string | null): void {
+  update(scene: Scene, camera: Camera): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -70,19 +70,14 @@ export class TokenRenderer {
       this.dirty = true;
     }
 
-    if (this.lastSelectionId !== selectionId) {
-      this.lastSelectionId = selectionId;
-      this.dirty = true;
-    }
-
     if (this.dirty || scene.tokens.length !== this.lastCount) {
-      this.redrawAll(scene, camera, selectionId);
+      this.redrawAll(scene, camera);
       this.lastCount = scene.tokens.length;
       this.dirty = false;
     }
   }
 
-  private redrawAll(scene: Scene, camera: Camera, selectionId: string | null): void {
+  private redrawAll(scene: Scene, camera: Camera): void {
     this.graphics.clear();
     const zoom = Math.max(0.01, this.lastZoom);
 
@@ -106,7 +101,7 @@ export class TokenRenderer {
       const rInt = Math.ceil(rCss);
       const cx = Math.round(sp.x);
       const cy = Math.round(sp.y);
-      const isSelected = selectionId === t.id;
+      const isSelected = this.selectionIds.has(t.id);
 
       if (!t.imageUrl) {
         // Plain colored circle

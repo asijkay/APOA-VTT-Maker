@@ -4,39 +4,29 @@ import type { EditorToolController, ToolContext, ToolPointerEvent } from '../Edi
 import type { PreviewWallSegment } from '../../renderer/EditorPreviewRenderer';
 import { opAddWall } from '../../scene/UndoManager';
 
-export function snapToGridIntersection(wx: number, wy: number): { x: number; y: number } {
-  return snapWorldToGrid({ x: wx, y: wy });
+export function snapToGridIntersection(wx: number, wy: number, gridSize: number): { x: number; y: number } {
+  return snapWorldToGrid({ x: wx, y: wy }, gridSize);
 }
 
-/**
- * Given two raw world endpoints (not yet snapped), returns a pair of axis-aligned
- * endpoints where start is already snapped to grid, and end is snapped to grid
- * and locked horizontally or vertically based on larger world delta.
- *
- * If startX == endX AND startY == endY after locking, returns valid = false.
- */
-export function lockAxisAligned(
+export function snapWallEndpoints(
   startX: number,
   startY: number,
   endX: number,
   endY: number,
+  gridSize: number,
+  mapWidth: number,
+  mapHeight: number,
 ): { x1: number; y1: number; x2: number; y2: number; valid: boolean } {
-  const rawStart = snapToGridIntersection(startX, startY);
-  const rawEnd = snapToGridIntersection(endX, endY);
-  const dx = Math.abs(rawEnd.x - rawStart.x);
-  const dy = Math.abs(rawEnd.y - rawStart.y);
-  const horizontal = dx >= dy;
-  const x1 = rawStart.x;
-  const y1 = rawStart.y;
-  let x2: number;
-  let y2: number;
-  if (horizontal) {
-    x2 = rawEnd.x;
-    y2 = y1;
-  } else {
-    x2 = x1;
-    y2 = rawEnd.y;
-  }
+  const rawStart = snapToGridIntersection(startX, startY, gridSize);
+  const rawEnd = snapToGridIntersection(endX, endY, gridSize);
+  
+  const clampX = (x: number) => Math.max(0, Math.min(mapWidth * gridSize, x));
+  const clampY = (y: number) => Math.max(0, Math.min(mapHeight * gridSize, y));
+  
+  const x1 = clampX(rawStart.x);
+  const y1 = clampY(rawStart.y);
+  const x2 = clampX(rawEnd.x);
+  const y2 = clampY(rawEnd.y);
   const valid = !(x1 === x2 && y1 === y2);
   return { x1, y1, x2, y2, valid };
 }
@@ -64,7 +54,8 @@ export class WallTool implements EditorToolController {
 
     if (e.type === 'pointerdown') {
       this.dragging = true;
-      const s = snapToGridIntersection(e.worldX, e.worldY);
+      const gridSize = this.ctx.scene.snapshot().gridSize;
+      const s = snapToGridIntersection(e.worldX, e.worldY, gridSize);
       this.startWorld = s;
       const previewSeg: PreviewWallSegment = {
         x1: s.x,
@@ -78,16 +69,20 @@ export class WallTool implements EditorToolController {
     }
 
     if (e.type === 'pointermove') {
+      const { gridSize, mapWidth, mapHeight } = this.ctx.scene.snapshot();
       if (!this.dragging || !this.startWorld) {
-        const s = snapToGridIntersection(e.worldX, e.worldY);
+        const s = snapToGridIntersection(e.worldX, e.worldY, gridSize);
         preview.showWallSegment({ x1: s.x, y1: s.y, x2: s.x, y2: s.y, valid: false });
         return;
       }
-      const seg = lockAxisAligned(
+      const seg = snapWallEndpoints(
         this.startWorld.x,
         this.startWorld.y,
         e.worldX,
         e.worldY,
+        gridSize,
+        mapWidth,
+        mapHeight,
       );
       preview.showWallSegment(seg);
       return;
@@ -95,11 +90,15 @@ export class WallTool implements EditorToolController {
 
     if (e.type === 'pointerup') {
       if (this.dragging && this.startWorld) {
-        const seg = lockAxisAligned(
+        const { gridSize, mapWidth, mapHeight } = this.ctx.scene.snapshot();
+        const seg = snapWallEndpoints(
           this.startWorld.x,
           this.startWorld.y,
           e.worldX,
           e.worldY,
+          gridSize,
+          mapWidth,
+          mapHeight,
         );
         if (seg.valid) {
           this.ctx.undoManager.execute(opAddWall({

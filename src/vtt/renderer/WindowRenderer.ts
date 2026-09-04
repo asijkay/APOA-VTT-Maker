@@ -6,7 +6,7 @@ export class WindowRenderer {
   private container: Container;
   private graphics: Graphics;
   private dirty = true;
-  private selectionId: string | null = null;
+  private selectionIds: ReadonlySet<string> = new Set();
 
   private lastZoom = -1;
   private lastCamX = -Infinity;
@@ -22,14 +22,15 @@ export class WindowRenderer {
 
   getContainer(): Container { return this.container; }
 
-  setSelection(id: string | null): void {
-    this.selectionId = id;
+  setSelection(ids: ReadonlySet<string>): void {
+    if (this.selectionIds === ids) return;
+    this.selectionIds = ids;
     this.dirty = true;
   }
 
   markDirty(): void { this.dirty = true; }
 
-  update(scene: Scene, camera: Camera, selectionId: string | null): void {
+  update(scene: Scene, camera: Camera): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -43,8 +44,7 @@ export class WindowRenderer {
       this.dirty = true;
     }
 
-    if (!this.dirty && this.selectionId === selectionId) return;
-    this.selectionId = selectionId;
+    if (!this.dirty) return;
     this.graphics.clear();
 
     const CYAN = 0x00e5ff;
@@ -58,7 +58,7 @@ export class WindowRenderer {
       const sp1 = camera.worldToScreen(p1.x, p1.y);
       const sp2 = camera.worldToScreen(p2.x, p2.y);
 
-      const isSelected = win.id === selectionId;
+      const isSelected = this.selectionIds.has(win.id);
       const color = isSelected ? CYAN_SELECTED : CYAN;
 
       // Draw window as a thick dashed cyan line

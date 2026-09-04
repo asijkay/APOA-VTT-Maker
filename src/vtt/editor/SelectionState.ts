@@ -1,19 +1,51 @@
 import type { ID } from '../scene/SceneTypes';
 
-export type SelectionListener = (selectedId: ID | null) => void;
+export type SelectionListener = (selectedIds: ReadonlySet<ID>) => void;
 
 export class SelectionState {
-  private id: ID | null = null;
+  private ids = new Set<ID>();
   private listeners = new Set<SelectionListener>();
 
-  get(): ID | null {
-    return this.id;
+  get(): ReadonlySet<ID> {
+    return this.ids;
   }
 
-  set(id: ID | null): void {
-    if (this.id === id) return;
-    this.id = id;
-    for (const l of this.listeners) l(id);
+  has(id: ID): boolean {
+    return this.ids.has(id);
+  }
+
+  set(ids: Iterable<ID> | null): void {
+    this.ids = ids ? new Set(ids) : new Set();
+    this.notify();
+  }
+
+  setSingle(id: ID | null): void {
+    this.ids = id ? new Set([id]) : new Set();
+    this.notify();
+  }
+
+  add(id: ID): void {
+    if (this.ids.has(id)) return;
+    this.ids.add(id);
+    this.notify();
+  }
+
+  remove(id: ID): void {
+    if (!this.ids.has(id)) return;
+    this.ids.delete(id);
+    this.notify();
+  }
+
+  toggle(id: ID): void {
+    if (this.ids.has(id)) this.ids.delete(id);
+    else this.ids.add(id);
+    this.notify();
+  }
+
+  clear(): void {
+    if (this.ids.size === 0) return;
+    this.ids.clear();
+    this.notify();
   }
 
   subscribe(listener: SelectionListener): () => void {
@@ -21,7 +53,7 @@ export class SelectionState {
     return () => this.listeners.delete(listener);
   }
 
-  clear(): void {
-    this.set(null);
+  private notify(): void {
+    for (const l of this.listeners) l(this.ids);
   }
 }

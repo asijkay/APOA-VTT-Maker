@@ -1,9 +1,10 @@
 import type { VttEngine } from '@/vtt/engine/VttEngine';
-import type { Door, Light, Token, Wall, Window as VttWindow } from '@/vtt/scene/SceneTypes';
+import type { Door, Light, Token, Wall, Window as VttWindow, MapImage } from '@/vtt/scene/SceneTypes';
 import { useCallback, useRef } from 'react';
+import { opUpdateSceneSettings } from '@/vtt/scene/UndoManager';
 
 type Props = {
-  selectedId: string;
+  selectedIds: ReadonlySet<string>;
   engine: VttEngine;
   sceneVersion: number;
 };
@@ -75,21 +76,72 @@ const bigButtonStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: 600,
 });
 
-export default function PropertiesPanel({ selectedId, engine, sceneVersion }: Props) {
+export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: Props) {
   void sceneVersion;
 
+  if (selectedIds.size > 1) {
+    return (
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Multiple Selected</div>
+        <div style={{ color: '#a0aec0', fontSize: 12 }}>
+          {selectedIds.size} objects selected
+        </div>
+      </div>
+    );
+  }
+
+  const selectedId = Array.from(selectedIds)[0];
   const sceneStore = engine.getScene();
+
+  if (!selectedId) {
+    const snap = sceneStore.snapshot();
+    return (
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Map Settings</div>
+        <div style={rowBetween}>
+          <span style={{ color: '#a0aec0', fontSize: 11 }}>Width</span>
+          <input
+            type="number" min={5} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
+            value={snap.mapWidth}
+            onChange={e => {
+              const v = Math.max(5, Math.min(200, Number(e.target.value)));
+              engine.editor.getUndoManager().execute(
+                opUpdateSceneSettings({ mapWidth: v }, { mapWidth: snap.mapWidth })
+              );
+            }}
+          />
+          <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
+        </div>
+        <div style={rowBetween}>
+          <span style={{ color: '#a0aec0', fontSize: 11 }}>Height</span>
+          <input
+            type="number" min={5} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
+            value={snap.mapHeight}
+            onChange={e => {
+              const v = Math.max(5, Math.min(200, Number(e.target.value)));
+              engine.editor.getUndoManager().execute(
+                opUpdateSceneSettings({ mapHeight: v }, { mapHeight: snap.mapHeight })
+              );
+            }}
+          />
+          <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
+        </div>
+      </div>
+    );
+  }
   const wall   = sceneStore.findWallById(selectedId);
   const door   = sceneStore.findDoorById(selectedId);
   const light  = sceneStore.findLightById(selectedId);
   const token  = sceneStore.findTokenById(selectedId);
   const win    = sceneStore.findWindowById(selectedId);
+  const img    = sceneStore.findImageById(selectedId);
 
   const handleUpdateWall  = useCallback((p: Partial<Omit<Wall, 'id'>>) => sceneStore.updateWall(selectedId, p),  [sceneStore, selectedId]);
   const handleUpdateDoor  = useCallback((p: Partial<Omit<Door, 'id'>>) => sceneStore.updateDoor(selectedId, p),  [sceneStore, selectedId]);
   const handleUpdateLight = useCallback((p: Partial<Omit<Light, 'id'>>) => sceneStore.updateLight(selectedId, p), [sceneStore, selectedId]);
   const handleUpdateToken = useCallback((p: Partial<Omit<Token, 'id'>>) => sceneStore.updateToken(selectedId, p), [sceneStore, selectedId]);
   const handleUpdateWin   = useCallback((p: Partial<Omit<VttWindow, 'id'>>) => sceneStore.updateWindow(selectedId, p), [sceneStore, selectedId]);
+  const handleUpdateImage = useCallback((p: Partial<Omit<MapImage, 'id'>>) => sceneStore.updateImage(selectedId, p), [sceneStore, selectedId]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -128,7 +180,7 @@ export default function PropertiesPanel({ selectedId, engine, sceneVersion }: Pr
 
         <div style={labelRow}>
           <span>Width: {door.width}wu</span>
-          <input type="range" min={10} max={100} step={5} style={rangeStyle}
+          <input type="range" min={50} max={200} step={10} style={rangeStyle}
             value={door.width}
             onChange={e => handleUpdateDoor({ width: Number(e.target.value) })} />
         </div>
@@ -258,6 +310,45 @@ export default function PropertiesPanel({ selectedId, engine, sceneVersion }: Pr
             value={token.visionRadius}
             onChange={e => handleUpdateToken({ visionRadius: Number(e.target.value) })} />
         </div>
+      </div>
+    );
+  }
+
+  // ── Image ─────────────────────────────────────────────────────────────────
+  if (img) {
+    return (
+      <div style={panelStyle}>
+        <div style={sectionTitle}>Image</div>
+        <div style={labelRow}>
+          <span>URL</span>
+          <input type="text" style={inputStyle}
+            value={img.url ?? ''}
+            onChange={e => handleUpdateImage({ url: e.target.value })}
+            placeholder="https://..." />
+        </div>
+        <div style={labelRow}>
+          <span>Width: {img.width}</span>
+          <input type="range" min={100} max={4000} step={50} style={rangeStyle}
+            value={img.width}
+            onChange={e => handleUpdateImage({ width: Number(e.target.value) })} />
+        </div>
+        <div style={labelRow}>
+          <span>Height: {img.height}</span>
+          <input type="range" min={100} max={4000} step={50} style={rangeStyle}
+            value={img.height}
+            onChange={e => handleUpdateImage({ height: Number(e.target.value) })} />
+        </div>
+        <div style={labelRow}>
+          <span>Opacity: {img.opacity}</span>
+          <input type="range" min={0.1} max={1} step={0.1} style={rangeStyle}
+            value={img.opacity}
+            onChange={e => handleUpdateImage({ opacity: Number(e.target.value) })} />
+        </div>
+        <label style={rowBetween}>
+          <input type="checkbox" checked={img.locked}
+            onChange={e => handleUpdateImage({ locked: e.target.checked })} />
+          🔒 Locked
+        </label>
       </div>
     );
   }

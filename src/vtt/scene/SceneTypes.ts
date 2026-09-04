@@ -57,13 +57,28 @@ export type Token = {
   imageUrl?: string;
 };
 
+export type MapImage = {
+  id: ID;
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity: number;
+  locked: boolean;
+};
+
 export type Scene = {
+  gridSize: number;
+  mapWidth: number;
+  mapHeight: number;
   floors: FloorTile[];
   walls: Wall[];
   doors: Door[];
   lights: Light[];
   tokens: Token[];
   windows: Window[];
+  images: MapImage[];
 };
 
 export type EditorTool =
@@ -74,15 +89,20 @@ export type EditorTool =
   | 'door'
   | 'window'
   | 'light'
-  | 'token';
+  | 'token'
+  | 'image';
 
 export function createEmptyScene(): Scene {
   return {
+    gridSize: 25,
+    mapWidth: 25,
+    mapHeight: 25,
     floors: [],
     walls: [],
     doors: [],
     lights: [],
     tokens: [],
     windows: [],
+    images: [],
   };
 }

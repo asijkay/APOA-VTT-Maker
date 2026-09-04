@@ -28,6 +28,7 @@ export type ToolContext = {
   preview: EditorPreviewRenderer;
   selection: SelectionState;
   snapTokens: boolean;
+  viewMode: 'gm' | 'player';
   world: Readonly<{ screenToWorld: (sx: number, sy: number) => Point2 }>;
 };
 

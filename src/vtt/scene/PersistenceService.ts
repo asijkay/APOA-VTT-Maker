@@ -11,12 +11,16 @@ function coerceScene(raw: unknown): Scene {
   if (typeof raw !== 'object' || raw === null) return createEmptyScene();
   const obj = raw as Record<string, unknown>;
   return {
+    gridSize: typeof obj.gridSize === 'number' ? obj.gridSize : 25,
+    mapWidth: typeof obj.mapWidth === 'number' ? obj.mapWidth : 25,
+    mapHeight: typeof obj.mapHeight === 'number' ? obj.mapHeight : 25,
     floors: Array.isArray(obj.floors) ? obj.floors : [],
     walls: Array.isArray(obj.walls) ? obj.walls : [],
     doors: Array.isArray(obj.doors) ? obj.doors : [],
     lights: Array.isArray(obj.lights) ? obj.lights : [],
     tokens: Array.isArray(obj.tokens) ? obj.tokens : [],
     windows: Array.isArray(obj.windows) ? obj.windows : [],
+    images: Array.isArray(obj.images) ? obj.images : [],
   };
 }
 

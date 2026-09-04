@@ -7,7 +7,7 @@ export class LightRenderer {
   private container: Container;
   private graphics: Graphics;
   private lightResults: LightResult[] = [];
-  private selectionId: string | null = null;
+  private selectionIds: ReadonlySet<string> = new Set();
   private dirty = true;
 
   constructor(parent: Container) {
@@ -23,8 +23,9 @@ export class LightRenderer {
     return this.container;
   }
 
-  setSelection(id: string | null): void {
-    this.selectionId = id;
+  setSelection(ids: ReadonlySet<string>): void {
+    if (this.selectionIds === ids) return;
+    this.selectionIds = ids;
     this.dirty = true;
   }
 
@@ -41,7 +42,7 @@ export class LightRenderer {
   private lastCamX = -Infinity;
   private lastCamY = -Infinity;
 
-  update(scene: Scene, camera: Camera, selectionId: string | null): void {
+  update(scene: Scene, camera: Camera): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -55,9 +56,7 @@ export class LightRenderer {
       this.dirty = true;
     }
 
-    if (!this.dirty && this.selectionId === selectionId) return;
-    
-    this.selectionId = selectionId;
+    if (!this.dirty) return;
     this.graphics.clear();
 
     // Render each light as a colored radial gradient/polygon
@@ -83,7 +82,7 @@ export class LightRenderer {
       this.graphics.stroke({ width: 1, color, alpha: 0.5 });
 
       // Draw selection highlight
-      if (result.lightId === selectionId) {
+      if (this.selectionIds.has(result.lightId)) {
         const light = scene.lights.find(l => l.id === result.lightId);
         if (light) {
           const sp = camera.worldToScreen(light.x, light.y);

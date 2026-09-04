@@ -21,9 +21,14 @@ export class TokenTool implements EditorToolController {
   onPointer(e: ToolPointerEvent): void {
     if (!this.ctx) return;
     const { preview } = this.ctx;
-    const g = worldToGrid({ x: e.worldX, y: e.worldY });
+    const { gridSize, mapWidth, mapHeight } = this.ctx.scene.snapshot();
+    const rawG = worldToGrid({ x: e.worldX, y: e.worldY }, gridSize);
+    const g = {
+      gx: Math.max(0, Math.min(mapWidth - 1, rawG.gx)),
+      gy: Math.max(0, Math.min(mapHeight - 1, rawG.gy)),
+    };
     if (e.type === 'pointerdown' && e.button === 0) {
-      const center = cellCenter(g.gx, g.gy);
+      const center = cellCenter(g.gx, g.gy, gridSize);
       this.ctx.undoManager.execute(opAddToken({ x: center.x, y: center.y, elevation: 0 }));
       preview.clear();
       this.lastCell = null;
@@ -32,7 +37,7 @@ export class TokenTool implements EditorToolController {
     if (e.type === 'pointermove') {
       if (!this.lastCell || this.lastCell.gx !== g.gx || this.lastCell.gy !== g.gy) {
         this.lastCell = g;
-        preview.showGridCursor(g.gx, g.gy, 'add');
+        preview.showGridCursor(g.gx, g.gy, 'add', gridSize);
       }
     }
   }

@@ -4,14 +4,16 @@ import type { EditorTool } from '../scene/SceneTypes';
 import type { SceneStore } from '../scene/SceneStore';
 import type { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
 import type { EditorToolController, ToolContext, ToolPointerEvent } from './EditorTool';
-import { EraseFloorTool, FloorTool, SelectTool } from './tools/PaintTools';
+import { EraseFloorTool, FloorTool } from './tools/PaintTools';
+import { SelectTool } from './tools/SelectTool';
 import { WallTool } from './tools/WallTool';
 import { DoorTool } from './tools/DoorTool';
 import { LightTool } from './tools/LightTool';
 import { TokenTool } from './tools/TokenTool';
+import { ImageTool } from './tools/ImageTool';
 import { WindowTool } from './tools/WindowTool';
 import { SelectionState, type SelectionListener } from './SelectionState';
-import { UndoManager, opRemoveWall, opRemoveToken } from '../scene/UndoManager';
+import { UndoManager, opBatch, opRemoveWall, opRemoveToken, opRemoveDoor, opRemoveLight, opRemoveWindow, opRemoveImage } from '../scene/UndoManager';
 
 export type EditorControllerOpts = {
   camera: Camera;
@@ -42,6 +44,7 @@ export class EditorController {
   private onActiveToolChange?: (tool: EditorTool) => void;
   private activePointerId: number | null = null;
   private _snapTokens = true;
+  private _viewMode: 'gm' | 'player' = 'gm';
 
   constructor(opts: EditorControllerOpts) {
     this.camera = opts.camera;
@@ -63,6 +66,7 @@ export class EditorController {
     this.registerTool(new WindowTool());
     this.registerTool(new LightTool());
     this.registerTool(new TokenTool());
+    this.registerTool(new ImageTool());
 
     const cameraRef = this.camera;
     const selectionRef = this.selection;
@@ -73,6 +77,7 @@ export class EditorController {
       preview: this.preview,
       selection: this.selection,
       snapTokens: this._snapTokens,
+      viewMode: this._viewMode,
       world: {
         screenToWorld: (sx, sy) => cameraRef.screenToWorld(sx, sy),
       },
@@ -111,6 +116,11 @@ export class EditorController {
     this.activeTool = tool;
     this.activeTool.attach(this.ctx);
     this.onActiveToolChange?.(id);
+  }
+
+  setViewMode(mode: 'gm' | 'player'): void {
+    this._viewMode = mode;
+    this.ctx.viewMode = mode;
   }
 
   onCanvasPointerDown(e: {
@@ -209,7 +219,7 @@ export class EditorController {
     return this.pan.active || this.spacePressed;
   }
 
-  getSelection(): string | null {
+  getSelection(): ReadonlySet<string> {
     return this.selection.get();
   }
 
@@ -314,22 +324,54 @@ export class EditorController {
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      const sel = this.selection.get();
-      if (sel) {
-        const wall = this.scene.findWallById(sel);
-        if (wall) {
-          this.undoManager.execute(opRemoveWall(sel, { x1: wall.x1, y1: wall.y1, x2: wall.x2, y2: wall.y2, blocksVision: wall.blocksVision, blocksMovement: wall.blocksMovement }));
-          this.selection.set(null);
-          e.preventDefault();
-          return;
+      const selectedIds = this.selection.get();
+      if (selectedIds.size > 0) {
+        const ops = [];
+        for (const sel of selectedIds) {
+          const wall = this.scene.findWallById(sel);
+          if (wall) {
+            const { id, ...data } = wall;
+            ops.push(opRemoveWall(sel, data));
+            continue;
+          }
+          const token = this.scene.findTokenById(sel);
+          if (token) {
+            const { id, ...data } = token;
+            ops.push(opRemoveToken(sel, data));
+            continue;
+          }
+          const door = this.scene.findDoorById(sel);
+          if (door) {
+            const { id, ...data } = door;
+            ops.push(opRemoveDoor(sel, data));
+            continue;
+          }
+          const light = this.scene.findLightById(sel);
+          if (light) {
+            const { id, ...data } = light;
+            ops.push(opRemoveLight(sel, data));
+            continue;
+          }
+          const win = this.scene.findWindowById(sel);
+          if (win) {
+            const { id, ...data } = win;
+            ops.push(opRemoveWindow(sel, data));
+            continue;
+          }
+          const img = this.scene.findImageById(sel);
+          if (img && !img.locked) {
+            const { id, ...data } = img;
+            ops.push(opRemoveImage(sel, data));
+            continue;
+          }
         }
-        const token = this.scene.findTokenById(sel);
-        if (token) {
-          this.undoManager.execute(opRemoveToken(sel, { x: token.x, y: token.y, radius: token.radius, visionRadius: token.visionRadius }));
-          this.selection.set(null);
+        
+        if (ops.length > 0) {
+          this.undoManager.execute(ops.length === 1 ? ops[0] : opBatch('Delete Objects', ops));
+          this.selection.clear();
           e.preventDefault();
-          return;
         }
+        return;
       }
     }
     switch (e.key.toLowerCase()) {

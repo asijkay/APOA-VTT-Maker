@@ -1,5 +1,4 @@
 import { Container, Graphics } from 'pixi.js';
-import { GRID_SIZE } from '../engine/CoordinateSystem';
 import type { Camera } from '../engine/Camera';
 import { screenRect } from './FloorRenderer';
 
@@ -44,9 +43,9 @@ export class EditorPreviewRenderer {
     return this._camera;
   }
 
-  showGridCursor(gx: number, gy: number, mode: 'add' | 'remove' | 'select'): void {
+  showGridCursor(gx: number, gy: number, mode: 'add' | 'remove' | 'select', gridSize: number): void {
     this.graphics.clear();
-    const size = GRID_SIZE;
+    const size = gridSize;
     const wx1 = gx * size;
     const wy1 = gy * size;
     const wx2 = wx1 + size;
@@ -70,9 +69,9 @@ export class EditorPreviewRenderer {
       .stroke({ width: 1, color: stroke, alpha: 0.95, alignment: 0 });
   }
 
-  showCells(cells: PreviewFloorCell[]): void {
+  showCells(cells: PreviewFloorCell[], gridSize: number): void {
     this.graphics.clear();
-    const size = GRID_SIZE;
+    const size = gridSize;
     for (const c of cells) {
       const wx1 = c.gridX * size;
       const wy1 = c.gridY * size;
@@ -107,6 +106,21 @@ export class EditorPreviewRenderer {
       .circle(p2.x, p2.y, 4)
       .fill({ color: 0xffffff, alpha: 0.95 })
       .stroke({ width: 1, color, alpha });
+  }
+
+  showSelectionBox(x1: number, y1: number, x2: number, y2: number): void {
+    this.graphics.clear();
+    const minX = Math.min(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxX = Math.max(x1, x2);
+    const maxY = Math.max(y1, y2);
+    const p1 = this.cam().worldToScreen(minX, minY);
+    const p2 = this.cam().worldToScreen(maxX, maxY);
+
+    this.graphics
+      .rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y)
+      .fill({ color: 0x63b3ed, alpha: 0.15 })
+      .stroke({ width: 1, color: 0x63b3ed, alpha: 0.8, alignment: 0 });
   }
 
   getContainer(): Container {

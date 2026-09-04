@@ -19,7 +19,7 @@ const DEFAULT_STATS: DebugStats = {
 export default function App() {
   const [stats, setStats] = useState<DebugStats>(DEFAULT_STATS);
   const [activeTool, setActiveTool] = useState<EditorTool>('select');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [sceneVersion, setSceneVersion] = useState(0);
   const [debugVision, setDebugVision] = useState(false);
   const [debugCollision, setDebugCollision] = useState(false);
@@ -29,7 +29,7 @@ export default function App() {
 
   const handleDebug = useCallback((s: DebugStats) => { setStats(s); }, []);
   const handleToolChange = useCallback((tool: EditorTool) => { setActiveTool(tool); }, []);
-  const handleSelectionChange = useCallback((id: string | null) => { setSelectedId(id); }, []);
+  const handleSelectionChange = useCallback((ids: ReadonlySet<string>) => { setSelectedIds(ids); }, []);
   const handleSceneChange = useCallback(() => { setSceneVersion((v) => v + 1); }, []);
 
   // Sync debug options
@@ -72,7 +72,7 @@ export default function App() {
   const handleNewScene = () => {
     if (window.confirm('Start a new scene? All unsaved changes will be lost.')) {
       engineRef.current?.newScene();
-      setSelectedId(null);
+      setSelectedIds(new Set());
     }
   };
 
@@ -91,7 +91,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />
+      {viewMode === 'gm' && <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />}
 
       {/* Bottom-left control panel */}
       <div style={{
@@ -152,9 +152,9 @@ export default function App() {
         engineRef={engineRef}
       />
 
-      {selectedId && engineRef.current && (
+      {viewMode === 'gm' && engineRef.current && (
         <PropertiesPanel
-          selectedId={selectedId}
+          selectedIds={selectedIds}
           engine={engineRef.current}
           sceneVersion={sceneVersion}
         />

@@ -1,6 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
 import type { Camera } from '../engine/Camera';
-import { GRID_SIZE } from '../engine/CoordinateSystem';
 
 export class GridRenderer {
   public container: Container;
@@ -40,45 +39,53 @@ export class GridRenderer {
     stage.addChild(this.container);
   }
 
-  update(camera: Camera): void {
+  update(camera: Camera, mapWidth: number, mapHeight: number, gridSize: number): void {
     const bounds = camera.getBounds();
     this.minorLines.clear();
     this.majorLines.clear();
     this.axisLines.clear();
 
-    const worldLeft = bounds.worldLeft;
-    const worldRight = bounds.worldRight;
-    const worldTop = bounds.worldTop;
-    const worldBottom = bounds.worldBottom;
+    const worldLeft = Math.max(0, bounds.worldLeft);
+    const worldRight = Math.min(mapWidth * gridSize, bounds.worldRight);
+    const worldTop = Math.max(0, bounds.worldTop);
+    const worldBottom = Math.min(mapHeight * gridSize, bounds.worldBottom);
 
-    const startGX = Math.floor(worldLeft / GRID_SIZE) - 1;
-    const endGX = Math.ceil(worldRight / GRID_SIZE) + 1;
-    const startGY = Math.floor(worldTop / GRID_SIZE) - 1;
-    const endGY = Math.ceil(worldBottom / GRID_SIZE) + 1;
+    const startGX = Math.max(0, Math.floor(worldLeft / gridSize));
+    const endGX = Math.min(mapWidth, Math.ceil(worldRight / gridSize));
+    const startGY = Math.max(0, Math.floor(worldTop / gridSize));
+    const endGY = Math.min(mapHeight, Math.ceil(worldBottom / gridSize));
 
     const halfPx = (n: number) => Math.round(n) + 0.5;
 
     const minorPts: Array<[number, number, number, number]> = [];
     const majorPts: Array<[number, number, number, number]> = [];
 
+    // Map boundary points
+    const mapTopY = camera.worldToScreen(0, 0).y;
+    const mapBottomY = camera.worldToScreen(0, mapHeight * gridSize).y;
+    const mapLeftX = camera.worldToScreen(0, 0).x;
+    const mapRightX = camera.worldToScreen(mapWidth * gridSize, 0).x;
+
     for (let gx = startGX; gx <= endGX; gx++) {
-      const x = gx * GRID_SIZE;
-      const p1 = camera.worldToScreen(x, worldTop);
-      const p2 = camera.worldToScreen(x, worldBottom);
+      const x = gx * gridSize;
+      const p1 = camera.worldToScreen(x, 0);
       const sx = halfPx(p1.x);
-      const y0 = halfPx(p1.y);
-      const y1 = halfPx(p2.y);
-      if (gx % 5 === 0) majorPts.push([sx, y0, sx, y1]);
+      const y0 = halfPx(mapTopY);
+      const y1 = halfPx(mapBottomY);
+      
+      // Ensure we don't draw lines completely off-screen, though startGX/endGX handles this mostly
+      if (gx % 5 === 0 || gx === 0 || gx === mapWidth) majorPts.push([sx, y0, sx, y1]);
       else minorPts.push([sx, y0, sx, y1]);
     }
+    
     for (let gy = startGY; gy <= endGY; gy++) {
-      const y = gy * GRID_SIZE;
-      const p1 = camera.worldToScreen(worldLeft, y);
-      const p2 = camera.worldToScreen(worldRight, y);
+      const y = gy * gridSize;
+      const p1 = camera.worldToScreen(0, y);
       const sy = halfPx(p1.y);
-      const x0 = halfPx(p1.x);
-      const x1 = halfPx(p2.x);
-      if (gy % 5 === 0) majorPts.push([x0, sy, x1, sy]);
+      const x0 = halfPx(mapLeftX);
+      const x1 = halfPx(mapRightX);
+      
+      if (gy % 5 === 0 || gy === 0 || gy === mapHeight) majorPts.push([x0, sy, x1, sy]);
       else minorPts.push([x0, sy, x1, sy]);
     }
 

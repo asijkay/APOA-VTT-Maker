@@ -212,6 +212,18 @@ export function opRemoveLight(id: string, lightData: Parameters<SceneStore['addL
   };
 }
 
+export function opUpdateLight(
+  id: string,
+  patch: Parameters<SceneStore['updateLight']>[1],
+  prevPatch: Parameters<SceneStore['updateLight']>[1],
+): Operation {
+  return {
+    label: 'Update Light',
+    apply(store) { store.updateLight(id, patch); },
+    inverse(store) { store.updateLight(id, prevPatch); },
+  };
+}
+
 export function opAddWindow(input: Parameters<SceneStore['addWindow']>[0]): Operation {
   let createdId: string | undefined;
   return {
@@ -226,5 +238,72 @@ export function opRemoveWindow(id: string, winData: Parameters<SceneStore['addWi
     label: 'Remove Window',
     apply(store) { store.removeWindow(id); },
     inverse(store) { store.addWindow(winData); },
+  };
+}
+
+export function opUpdateWindow(
+  id: string,
+  patch: Parameters<SceneStore['updateWindow']>[1],
+  prevPatch: Parameters<SceneStore['updateWindow']>[1],
+): Operation {
+  return {
+    label: 'Update Window',
+    apply(store) { store.updateWindow(id, patch); },
+    inverse(store) { store.updateWindow(id, prevPatch); },
+  };
+}
+
+export function opAddImage(input: Parameters<SceneStore['addImage']>[0]): Operation {
+  let createdId: string | undefined;
+  return {
+    label: 'Add Image',
+    apply(store) { createdId = store.addImage(input).id; },
+    inverse(store) { if (createdId) store.removeImage(createdId); },
+  };
+}
+
+export function opRemoveImage(id: string, imageData: Parameters<SceneStore['addImage']>[0]): Operation {
+  return {
+    label: 'Remove Image',
+    apply: (s) => s.removeImage(id),
+    inverse: (s) => s.addImage({ id, ...imageData }),
+  };
+}
+
+/**
+ * Bundles multiple operations into a single undo/redo step.
+ */
+export function opBatch(label: string, ops: Operation[]): Operation {
+  return {
+    label,
+    apply: (store) => ops.forEach((o) => o.apply(store)),
+    inverse: (store) => {
+      for (let i = ops.length - 1; i >= 0; i--) {
+        ops[i].inverse(store);
+      }
+    },
+  };
+}
+
+export function opUpdateImage(
+  id: string,
+  patch: Parameters<SceneStore['updateImage']>[1],
+  prevPatch: Parameters<SceneStore['updateImage']>[1],
+): Operation {
+  return {
+    label: 'Update Image',
+    apply(store) { store.updateImage(id, patch); },
+    inverse(store) { store.updateImage(id, prevPatch); },
+  };
+}
+
+export function opUpdateSceneSettings(
+  settings: { gridSize?: number; mapWidth?: number; mapHeight?: number },
+  prevSettings: { gridSize?: number; mapWidth?: number; mapHeight?: number },
+): Operation {
+  return {
+    label: 'Update Scene Settings',
+    apply(store) { store.updateSceneSettings(settings); },
+    inverse(store) { store.updateSceneSettings(prevSettings); },
   };
 }

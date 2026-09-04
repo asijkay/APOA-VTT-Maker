@@ -14,7 +14,7 @@ import type { Scene, Wall, Door } from '../scene/SceneTypes';
 export class DoorRenderer {
   private container: Container;
   private graphics: Graphics;
-  private selectionId: string | null = null;
+  private selectionIds: ReadonlySet<string> = new Set();
   private dirty = true;
 
   private lastZoom = -1;
@@ -38,15 +38,15 @@ export class DoorRenderer {
 
   getContainer(): Container { return this.container; }
 
-  setSelection(id: string | null): void {
-    if (this.selectionId === id) return;
-    this.selectionId = id;
+  setSelection(ids: ReadonlySet<string>): void {
+    if (this.selectionIds === ids) return;
+    this.selectionIds = ids;
     this.dirty = true;
   }
 
   markDirty(): void { this.dirty = true; }
 
-  update(scene: Scene, camera: Camera, selectionId: string | null): void {
+  update(scene: Scene, camera: Camera): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -60,8 +60,7 @@ export class DoorRenderer {
       this.dirty = true;
     }
 
-    if (!this.dirty && this.selectionId === selectionId) return;
-    this.selectionId = selectionId;
+    if (!this.dirty) return;
     this.graphics.clear();
 
     const wallMap = new Map<string, Wall>();
@@ -70,57 +69,56 @@ export class DoorRenderer {
     for (const door of scene.doors) {
       const wall = wallMap.get(door.wallId);
       if (!wall) continue;
-      this.drawDoor(door, wall, camera, selectionId === door.id, cs.zoom);
+      this.drawDoor(door, wall, camera, this.selectionIds.has(door.id), cs.zoom);
     }
 
     this.dirty = false;
   }
 
   private drawDoor(door: Door, wall: Wall, camera: Camera, isSelected: boolean, zoom: number): void {
-    const isHorizontal = wall.y1 === wall.y2;
+    const dx = wall.x2 - wall.x1;
+    const dy = wall.y2 - wall.y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
 
-    // Door center in world → screen
-    const cx = wall.x1 + (wall.x2 - wall.x1) * door.position;
-    const cy = wall.y1 + (wall.y2 - wall.y1) * door.position;
+    // Door center in world
+    const cx = wall.x1 + dx * door.position;
+    const cy = wall.y1 + dy * door.position;
+
+    // Direction vector
+    const dirX = dx / len;
+    const dirY = dy / len;
+
+    const halfW = door.width / 2;
+    // Endpoints in world
+    const wp1 = { x: cx - dirX * halfW, y: cy - dirY * halfW };
+    const wp2 = { x: cx + dirX * halfW, y: cy + dirY * halfW };
+
+    // To screen
+    const sp1 = camera.worldToScreen(wp1.x, wp1.y);
+    const sp2 = camera.worldToScreen(wp2.x, wp2.y);
     const sc = camera.worldToScreen(cx, cy);
 
-    // Door endpoints in world → screen
-    const halfW = door.width / 2;
-    let sp1: { x: number; y: number };
-    let sp2: { x: number; y: number };
-    if (isHorizontal) {
-      sp1 = camera.worldToScreen(cx - halfW, cy);
-      sp2 = camera.worldToScreen(cx + halfW, cy);
-    } else {
-      sp1 = camera.worldToScreen(cx, cy - halfW);
-      sp2 = camera.worldToScreen(cx, cy + halfW);
-    }
-
-    const doorLenPx = Math.sqrt(
-      (sp2.x - sp1.x) ** 2 + (sp2.y - sp1.y) ** 2
-    );
+    const doorLenPx = Math.sqrt((sp2.x - sp1.x) ** 2 + (sp2.y - sp1.y) ** 2);
     // thickness of door panel in screen px (min 3, scales with zoom)
     const thickness = Math.max(3, 5 * zoom);
 
     if (door.state === 'closed') {
-      this.drawClosedDoor(sp1, sp2, isHorizontal, thickness, door, isSelected);
+      this.drawClosedDoor(sp1, sp2, thickness, door, isSelected);
     } else {
-      this.drawOpenDoor(sp1, sp2, sc, cx, cy, wall, door, camera, doorLenPx, isHorizontal, thickness, isSelected);
+      this.drawOpenDoor(sp1, sp2, doorLenPx, thickness, isSelected);
     }
 
     if (door.locked) {
       this.drawLockIcon(sc.x, sc.y, Math.max(4, 6 * zoom));
     }
-
-    void zoom;
   }
 
   private drawClosedDoor(
     sp1: { x: number; y: number },
     sp2: { x: number; y: number },
-    isHorizontal: boolean,
     thickness: number,
-    door: Door,
+    _door: Door,
     isSelected: boolean,
   ): void {
     const g = this.graphics;
@@ -128,27 +126,18 @@ export class DoorRenderer {
 
     // Selection highlight (draw first, underneath)
     if (isSelected) {
-      const pad = thickness + 2;
-      g.setStrokeStyle({ width: 2, color: DoorRenderer.SELECT_COLOR, alpha: 1 });
-      if (isHorizontal) {
-        g.rect(sp1.x - 2, sp1.y - pad, sp2.x - sp1.x + 4, pad * 2);
-      } else {
-        g.rect(sp1.x - pad, sp1.y - 2, pad * 2, sp2.y - sp1.y + 4);
-      }
+      g.setStrokeStyle({ width: thickness + 4, color: DoorRenderer.SELECT_COLOR, alpha: 1, cap: 'butt' });
+      g.beginPath();
+      g.moveTo(sp1.x, sp1.y);
+      g.lineTo(sp2.x, sp2.y);
       g.stroke();
     }
 
-    // Door panel — filled rect
-    g.setFillStyle({ color, alpha: DoorRenderer.HOVER_ALPHA });
-    g.setStrokeStyle({ width: 1, color: 0x6b3d15, alpha: 1 });
-    if (isHorizontal) {
-      const h = thickness;
-      g.rect(sp1.x, sp1.y - h / 2, sp2.x - sp1.x, h);
-    } else {
-      const w = thickness;
-      g.rect(sp1.x - w / 2, sp1.y, w, sp2.y - sp1.y);
-    }
-    g.fill();
+    // Door panel — filled line
+    g.setStrokeStyle({ width: thickness, color, alpha: DoorRenderer.HOVER_ALPHA, cap: 'butt' });
+    g.beginPath();
+    g.moveTo(sp1.x, sp1.y);
+    g.lineTo(sp2.x, sp2.y);
     g.stroke();
 
     // Door handle dots
@@ -157,76 +146,46 @@ export class DoorRenderer {
     g.setFillStyle({ color: 0x3d1f06, alpha: 1 });
     g.circle(mx, my, Math.max(2, thickness * 0.35));
     g.fill();
-
-    void door;
   }
 
   private drawOpenDoor(
     sp1: { x: number; y: number },
     sp2: { x: number; y: number },
-    sc: { x: number; y: number },
-    _cx: number, _cy: number,
-    wall: Wall,
-    door: Door,
-    camera: Camera,
     doorLenPx: number,
-    isHorizontal: boolean,
     thickness: number,
     isSelected: boolean,
   ): void {
     const g = this.graphics;
     const color = DoorRenderer.DOOR_OPEN_COLOR;
 
-    // Hinge is at sp1 (start of door opening), panel swings to sp2
-    // Arc: quarter circle from the hinge point
-    // The hinge is the wall-side corner, arc sweeps 90° inward
-
-    // Determine hinge point and panel direction
-    // For a horizontal wall: hinge at left endpoint (sp1), panel hangs down
-    // For a vertical wall: hinge at top endpoint (sp1), panel hangs right
-    const hingeX = sp1.x;
-    const hingeY = sp1.y;
+    // Hinge is at sp2 (end of door opening), panel swings to sp1
+    const hingeX = sp2.x;
+    const hingeY = sp2.y;
     const radius = doorLenPx;
 
-    let startAngle: number;
-    let endAngle: number;
-
-    if (isHorizontal) {
-      // Door panel: thin horizontal line (closed position) shown faded
-      // Arc sweeps downward (or upward based on which side of wall we're on)
-      const wallMidY = camera.worldToScreen(
-        (wall.x1 + wall.x2) / 2, wall.y1
-      ).y;
-      const arcDir = sc.y >= wallMidY ? 1 : -1; // below or above
-      startAngle = 0; // rightward (along wall)
-      endAngle = arcDir * Math.PI / 2;
-    } else {
-      const wallMidX = camera.worldToScreen(
-        wall.x1, (wall.y1 + wall.y2) / 2
-      ).x;
-      const arcDir = sc.x >= wallMidX ? 1 : -1;
-      startAngle = -Math.PI / 2; // upward (along wall)
-      endAngle = startAngle + arcDir * Math.PI / 2;
-    }
+    const angleAlongWall = Math.atan2(sp1.y - sp2.y, sp1.x - sp2.x);
+    const arcDir = -1; // -1 for counterclockwise swing
+    const startAngle = angleAlongWall;
+    const endAngle = angleAlongWall + arcDir * (Math.PI / 2);
 
     // Selection glow
     if (isSelected) {
       g.setStrokeStyle({ width: 3, color: DoorRenderer.SELECT_COLOR, alpha: 0.7 });
-      g.arc(hingeX, hingeY, radius, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
+      g.beginPath();
+      g.arc(hingeX, hingeY, radius, startAngle, endAngle, arcDir < 0);
       g.stroke();
     }
 
     // Arc (swing path)
     g.setStrokeStyle({ width: 1.5, color, alpha: 0.7 });
     g.beginPath();
-    g.arc(hingeX, hingeY, radius, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
+    g.arc(hingeX, hingeY, radius, startAngle, endAngle, arcDir < 0);
     g.stroke();
 
     // Door panel in open position (perpendicular line from hinge)
     const panelEndX = hingeX + Math.cos(endAngle) * radius;
     const panelEndY = hingeY + Math.sin(endAngle) * radius;
-    g.setStrokeStyle({ width: thickness, color, alpha: DoorRenderer.HOVER_ALPHA });
-    g.setFillStyle({ color, alpha: 0 });
+    g.setStrokeStyle({ width: thickness, color, alpha: DoorRenderer.HOVER_ALPHA, cap: 'butt' });
     g.beginPath();
     g.moveTo(hingeX, hingeY);
     g.lineTo(panelEndX, panelEndY);
@@ -238,8 +197,6 @@ export class DoorRenderer {
     g.moveTo(sp1.x, sp1.y);
     g.lineTo(sp2.x, sp2.y);
     g.stroke();
-
-    void door;
   }
 
   private drawLockIcon(cx: number, cy: number, r: number): void {

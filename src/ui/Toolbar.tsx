@@ -21,6 +21,7 @@ const TOOLS: ToolSpec[] = [
   { id: 'window', label: 'Window', hotkey: 'I', enabled: true },
   { id: 'light', label: 'Light', hotkey: 'L', enabled: true },
   { id: 'token', label: 'Token', hotkey: 'T', enabled: true },
+  { id: 'image', label: 'Image', hotkey: 'M', enabled: true },
 ];
 
 export default function Toolbar({ activeTool, onToolChange }: Props) {
