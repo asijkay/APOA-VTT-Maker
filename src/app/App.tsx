@@ -141,6 +141,11 @@ export default function App() {
           <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Room 1</button>
           <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Room 2</button>
         </div>
+
+        {/* Version */}
+        <div style={{ marginTop: 2, color: '#4a5568', fontSize: 10, textAlign: 'right', userSelect: 'none' }}>
+          v{__APP_VERSION__}
+        </div>
       </div>
 
       <VttViewport
