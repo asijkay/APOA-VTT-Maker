@@ -20,15 +20,15 @@ const DEFAULT_STATS: DebugStats = {
 export default function Room() {
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
-  const role = searchParams.get('role') === 'gm' ? 'gm' : 'player';
-
+  const roleParam = searchParams.get('role');
+  
   const [stats, setStats] = useState<DebugStats>(DEFAULT_STATS);
   const [activeTool, setActiveTool] = useState<EditorTool>('select');
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [sceneVersion, setSceneVersion] = useState(0);
   const [debugVision, setDebugVision] = useState(false);
   const [debugCollision, setDebugCollision] = useState(false);
-  const [viewMode, setViewMode] = useState<'gm' | 'player'>(role);
+  const [viewMode, setViewMode] = useState<'gm' | 'player'>(roleParam === 'gm' ? 'gm' : 'player');
   const [snapTokens, setSnapTokens] = useState(true);
   const engineRef = useRef<VttEngine | null>(null);
 
@@ -50,80 +50,133 @@ export default function Room() {
     engineRef.current?.setViewMode(viewMode);
   }, [viewMode]);
 
+  // Sync snap-to-grid
   useEffect(() => {
     engineRef.current?.setSnapTokens(snapTokens);
   }, [snapTokens]);
 
-  const toggleVision = () => setDebugVision(v => !v);
-  const toggleCollision = () => setDebugCollision(v => !v);
-  const toggleViewMode = () => setViewMode(v => v === 'gm' ? 'player' : 'gm');
-  const toggleSnap = () => setSnapTokens(v => !v);
+  // Global Ctrl+Z / Ctrl+Y shortcuts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (!engineRef.current) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key === 'z' || e.key === 'Z') {
+        if (e.shiftKey) engineRef.current.redo();
+        else engineRef.current.undo();
+        e.preventDefault();
+      } else if (e.key === 'y' || e.key === 'Y') {
+        engineRef.current.redo();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
-  const handleClearMap = () => {
-    if (!engineRef.current) return;
-    engineRef.current.getScene().clear();
-    engineRef.current.getScene().addToken({ x: 200, y: 200 });
+  const handleNewScene = () => {
+    if (window.confirm('Start a new scene? All unsaved changes will be lost.')) {
+      engineRef.current?.newScene();
+      setSelectedIds(new Set());
+    }
   };
-  
-  const handleLoadTestRoom = () => {
-    if (!engineRef.current) return;
-    loadTestRoom(engineRef.current.getScene());
+
+  const btnStyle: React.CSSProperties = {
+    padding: '3px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 4,
+    border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)',
+    color: '#d6dbe2', whiteSpace: 'nowrap',
+  };
+  const activeBtn: React.CSSProperties = {
+    ...btnStyle, background: 'rgba(99,179,237,0.25)',
+    borderColor: 'rgba(99,179,237,0.6)', color: '#90cdf4',
+  };
+  const dangerBtn: React.CSSProperties = {
+    ...btnStyle, borderColor: 'rgba(252,129,129,0.4)', color: '#fc8181',
   };
 
   return (
-    <div className="app-container">
-      {viewMode === 'gm' && (
-        <Toolbar activeTool={activeTool} onToolChange={handleToolChange} />
-      )}
-      
-      <div className="viewport-container">
-        <VttViewport 
-          onEngineReady={(engine) => { 
-            engineRef.current = engine; 
-            engine.setViewMode(viewMode);
-            engine.setSnapTokens(snapTokens);
-          }}
-          activeTool={activeTool}
-          onDebugStats={handleDebug}
-          onSelectionChange={handleSelectionChange}
-          onSceneChange={handleSceneChange}
-        />
-        <DebugHud 
-          stats={stats} 
-          debugVision={debugVision}
-          debugCollision={debugCollision}
-          viewMode={viewMode}
-          snapTokens={snapTokens}
-          onToggleVision={toggleVision}
-          onToggleCollision={toggleCollision}
-          onToggleViewMode={toggleViewMode}
-          onToggleSnap={toggleSnap}
-          onClearMap={handleClearMap}
-          onLoadTestRoom={handleLoadTestRoom}
-        />
+    <div className="app-shell">
+      {viewMode === 'gm' && <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />}
+
+      {/* Bottom-left control panel */}
+      <div style={{
+        position: 'absolute', bottom: 12, left: 12, zIndex: 10,
+        background: 'rgba(18, 22, 28, 0.90)', padding: 10, borderRadius: 8,
+        border: '1px solid rgba(255, 255, 255, 0.08)', color: '#d6dbe2',
+        fontSize: 12, display: 'flex', flexDirection: 'column', gap: 7,
+        backdropFilter: 'blur(6px)', minWidth: 170,
+      }}>
+        
+        {/* Room Info */}
+        <div style={{ marginBottom: 4, color: '#90cdf4', fontWeight: 'bold' }}>
+          Room: {roomId}
+        </div>
+
+        {/* View mode */}
+        <button
+          style={viewMode === 'gm' ? activeBtn : btnStyle}
+          onClick={() => setViewMode(m => m === 'gm' ? 'player' : 'gm')}
+        >
+          {viewMode === 'gm' ? '👁 GM View' : '🎭 Player View'}
+        </button>
+
+        {/* Save / Load / New */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button style={btnStyle} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
+          <button style={btnStyle} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
+          <button style={dangerBtn} onClick={handleNewScene}>🗑</button>
+        </div>
+
+        {/* Snap to grid */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={snapTokens}
+            onChange={e => setSnapTokens(e.target.checked)} />
+          Snap tokens to grid
+        </label>
+
+        {/* Debug */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={debugVision}
+            onChange={e => setDebugVision(e.target.checked)} />
+          Debug Vision
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={debugCollision}
+            onChange={e => setDebugCollision(e.target.checked)} />
+          Debug Collision
+        </label>
+
+        {/* Test rooms */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Room 1</button>
+          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Room 2</button>
+        </div>
+
+        {/* Version */}
+        <div style={{ marginTop: 2, color: '#4a5568', fontSize: 10, textAlign: 'right', userSelect: 'none' }}>
+          {/* @ts-ignore - __APP_VERSION__ is defined by Vite */}
+          v{__APP_VERSION__}
+        </div>
       </div>
 
+      <VttViewport
+        onDebugUpdate={handleDebug}
+        activeTool={activeTool}
+        onActiveToolChange={handleToolChange}
+        onSelectionChange={handleSelectionChange}
+        onSceneChange={handleSceneChange}
+        engineRef={engineRef}
+      />
+
       {viewMode === 'gm' && engineRef.current && (
-        <PropertiesPanel 
-          engine={engineRef.current} 
-          selectedIds={selectedIds} 
-          sceneVersion={sceneVersion} 
+        <PropertiesPanel
+          selectedIds={selectedIds}
+          engine={engineRef.current}
+          sceneVersion={sceneVersion}
         />
       )}
-      
-      <div style={{
-        position: 'absolute',
-        top: 10,
-        left: 200,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        padding: '5px 10px',
-        color: 'white',
-        borderRadius: 4,
-        fontSize: '12px',
-        pointerEvents: 'none'
-      }}>
-        Room: {roomId}
-      </div>
+
+      <DebugHud stats={stats} />
     </div>
   );
 }
