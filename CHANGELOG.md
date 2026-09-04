@@ -7,6 +7,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.3.0] - 2026-09-04
+
+### Added
+- **Functioning Website Architecture**: Transformed the static prototype into a deployable website with routing (`react-router-dom`).
+- **Landing Page**: Added a landing page (`/`) to create new rooms.
+- **Room Pages**: Rooms now live at specific URLs (`/room/:roomId`).
+- **PeerJS Foundation**: Installed `peerjs` in preparation for real-time WebRTC multiplayer syncing.
+
+---
+
 ## [0.2.2] - 2026-09-04
 
 ### Changed

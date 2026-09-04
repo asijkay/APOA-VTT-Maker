@@ -1,13 +1,13 @@
-# APOA VTT Maker (v0.2.2)
+# APOA VTT Maker (v0.3.0)
 
 A browser-based Virtual Tabletop (VTT) prototype where map creation and VTT gameplay happen in the same environment.
 
 ## Current Milestone
 
-**Milestone 7: v0.2.2 Complete**
-- Added Ruler Tool, Map Background Images, and Wall Dragging.
-- Improved map size configurations (min 1x1, discrete update button) and door dimensions.
-- Changed UI terminology from "World Units" (wu) to "Pixels" (px).
+**Milestone 8: v0.3.0 (Functioning Website)**
+- Restructured the static prototype into a functioning website using `react-router-dom`.
+- Added Landing Page (`/`) and unique Room URLs (`/room/:id`).
+- Laid foundation for WebRTC Peer-to-Peer multiplayer using `peerjs`.
 
 ---
 
