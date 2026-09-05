@@ -54,8 +54,10 @@ export type Token = {
   elevation: number;
   radius: number;
   visionRadius: number;
+  ownerId?: string;
   name?: string;
   imageUrl?: string;
+  hidden?: boolean;
 };
 
 export type MapImage = {

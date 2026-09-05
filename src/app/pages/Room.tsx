@@ -98,7 +98,12 @@ export default function Room() {
       const store = engine.getScene();
       const ephemeralStore = engine.getEphemeralStore();
       const network = new NetworkService(roomId, store, ephemeralStore);
-      network.onStatusChange = (status) => setNetworkStatus(status);
+      network.onStatusChange = (status) => {
+        setNetworkStatus(status);
+        if (network.peer?.id) {
+          engineRef.current?.setLocalPeerId(network.peer.id);
+        }
+      };
       network.init();
       networkRef.current = network;
     }
@@ -158,7 +163,11 @@ export default function Room() {
         {/* View mode */}
         <button
           style={viewMode === 'gm' ? activeBtn : btnStyle}
-          onClick={() => setViewMode(m => m === 'gm' ? 'player' : 'gm')}
+          onClick={() => {
+            const nextMode = viewMode === 'gm' ? 'player' : 'gm';
+            if (nextMode === 'player') setActiveTool('select');
+            setViewMode(nextMode);
+          }}
         >
           {viewMode === 'gm' ? '👁 GM View' : '🎭 Player View'}
         </button>

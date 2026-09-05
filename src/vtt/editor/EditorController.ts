@@ -47,6 +47,7 @@ export class EditorController {
   private activePointerId: number | null = null;
   private _snapTokens = true;
   private _viewMode: 'gm' | 'player' = 'gm';
+  private _localPeerId: string | null = null;
   private onEphemeralEvent?: (event: any) => void;
 
   constructor(opts: EditorControllerOpts) {
@@ -84,6 +85,7 @@ export class EditorController {
       selection: this.selection,
       snapTokens: this._snapTokens,
       viewMode: this._viewMode,
+      localPeerId: this._localPeerId,
       onEphemeralEvent: (event) => this.onEphemeralEvent?.(event),
       world: {
         screenToWorld: (sx, sy) => this.camera.screenToWorld(sx, sy),
@@ -97,6 +99,11 @@ export class EditorController {
     this.handleKeyUpBound = (e) => this.handleKeyUp(e);
     window.addEventListener('keydown', this.handleKeyDownBound);
     window.addEventListener('keyup', this.handleKeyUpBound);
+  }
+
+  setLocalPeerId(id: string | null) {
+    this._localPeerId = id;
+    this.ctx.localPeerId = id;
   }
 
   private registerTool(tool: EditorToolController): void {

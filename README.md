@@ -1,16 +1,14 @@
-# APOA VTT Maker (v0.4.0)
+# APOA VTT Maker (v0.5.0)
 
 A browser-based Virtual Tabletop (VTT) prototype where map creation and VTT gameplay happen in the same environment.
 
 ## Current Milestone
 
-**Milestone 9: v0.4.0 (Multiplayer Presence & Ephemeral Sync)**
-- Completed PeerJS integration for true Serverless Peer-to-Peer multiplayer.
-- Added **Ephemeral Sync Engine** to synchronize actions that don't belong in the permanent map save.
-- Added Multiplayer Cursors so you can see where players are pointing.
-- Added Map Pinging (middle/right click) for drawing attention.
-- Networked the Ruler Tool so everyone sees what is being measured.
-- Added secure Role Links generation in the Host's control panel.
+**Milestone 10: v0.5.0 (Prototype 1 - Token Ownership)**
+- **Token Ownership:** Tokens can now be assigned to specific players (via Peer ID).
+- **Individual Vision:** The viewport dynamically filters Line of Sight so players only see from tokens they own.
+- **Movement Restrictions:** Players are blocked from moving or interacting with unowned tokens.
+- This represents the completion of Phase 1 for Prototype 1.
 
 ---
 

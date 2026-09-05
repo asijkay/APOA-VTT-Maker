@@ -300,6 +300,15 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
             placeholder="Token name…" />
         </div>
 
+        {/* Owner ID */}
+        <div style={labelRow}>
+          <span>Owner (Peer ID)</span>
+          <input type="text" style={inputStyle}
+            value={token.ownerId ?? ''}
+            onChange={e => handleUpdateToken({ ownerId: e.target.value || undefined })}
+            placeholder="e.g. peer-12345 (Leave empty for all)" />
+        </div>
+
         {/* Portrait image */}
         <div style={labelRow}>
           <span>Portrait</span>

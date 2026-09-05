@@ -7,6 +7,14 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.0] - 2026-09-05
+
+### Added
+- **Token Ownership (Prototype 1 - Phase 1)**: Players can now only interact with tokens assigned to them.
+- **Individual Vision Filtering**: The map viewport dynamically filters Line of Sight, ensuring players only see the vision radius from their own assigned tokens. GMs continue to see all tokens.
+- **Token Owner Assignment**: The GM can now assign tokens to specific players via the Properties Panel by entering their Peer ID.
+- **Player Movement Restrictions**: Players are prevented from selecting or dragging tokens they do not own.
+
 ## [0.4.1] - 2026-09-05
 
 ### Fixed

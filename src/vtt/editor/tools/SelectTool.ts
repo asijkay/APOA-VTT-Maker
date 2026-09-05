@@ -49,9 +49,14 @@ export class SelectTool implements EditorToolController {
       // 1. Try to find an object under cursor
       const hit = this.findObjectUnderCursor(e.worldX, e.worldY);
       
-      // Player mode: only allow selecting tokens
+      // Player mode: only allow selecting tokens they own
       if (this.ctx.viewMode === 'player') {
-        if (!hit || hit.type !== 'token') {
+        let allowed = false;
+        if (hit && hit.type === 'token') {
+          const t = this.ctx.scene.findTokenById(hit.id);
+          if (t && t.ownerId === this.ctx.localPeerId) allowed = true;
+        }
+        if (!allowed) {
           this.ctx.selection.clear();
           this.dragContext = null;
           return;

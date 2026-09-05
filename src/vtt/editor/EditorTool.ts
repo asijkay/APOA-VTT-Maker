@@ -29,6 +29,7 @@ export type ToolContext = {
   selection: SelectionState;
   snapTokens: boolean;
   viewMode: 'gm' | 'player';
+  localPeerId: string | null;
   onEphemeralEvent: (event: any) => void;
   world: Readonly<{ screenToWorld: (sx: number, sy: number) => Point2 }>;
 };

@@ -62,6 +62,7 @@ export class VttEngine {
   public editor: EditorController;
   private fogSystem: FogSystem;
   private viewMode: 'gm' | 'player' = 'gm';
+  private localPeerId: string | null = null;
   private autoSaveThrottle: ReturnType<typeof setTimeout> | null = null;
   private mouseWorld: { x: number; y: number } = { x: 0, y: 0 };
 
@@ -244,6 +245,11 @@ export class VttEngine {
     this.fogRenderer.setVisible(mode === 'player');
     this.editor.setViewMode(mode);
     this.renderFrame();
+  }
+
+  setLocalPeerId(id: string | null): void {
+    this.localPeerId = id;
+    this.editor.setLocalPeerId(id);
   }
 
   getViewMode(): 'gm' | 'player' {
@@ -512,7 +518,15 @@ export class VttEngine {
     this.imageRenderer.setSelection(selectionIds);
     
     // Compute vision polygons
-    const visionResults = computeAllVision(snapshot);
+    let visionResults = computeAllVision(snapshot);
+    if (this.viewMode === 'player' && this.localPeerId) {
+      // In player mode, only show vision for tokens owned by this player
+      visionResults = visionResults.filter(v => {
+        const t = snapshot.tokens.find(tok => tok.id === v.tokenId);
+        return t && t.ownerId === this.localPeerId;
+      });
+    }
+    
     this.visionRenderer.setVisionResults(visionResults);
     
     // Update fog system
