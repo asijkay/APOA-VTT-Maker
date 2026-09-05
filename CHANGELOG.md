@@ -7,6 +7,11 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.1] - 2026-09-05
+
+### Fixed
+- **Vercel 404 Routing**: Added `vercel.json` to properly rewrite all routes to `index.html`, fixing the 404 error when navigating directly to a Room URL or refreshing the page.
+
 ## [0.4.0] - 2026-09-05
 
 ### Added
