@@ -11,6 +11,7 @@ import { WindowRenderer } from '../renderer/WindowRenderer';
 import { FogRenderer } from '../renderer/FogRenderer';
 import { ImageRenderer } from '../renderer/ImageRenderer';
 import { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
+import { PresenceRenderer } from '../renderer/PresenceRenderer';
 import { SceneStore } from '../scene/SceneStore';
 import { ZOOM_STEP } from './CoordinateSystem';
 import { EditorController } from '../editor/EditorController';
@@ -18,6 +19,7 @@ import { computeAllVision } from '../systems/VisionSystem';
 import { computeAllLighting } from '../systems/LightingSystem';
 import { FogSystem } from '../systems/FogSystem';
 import { PersistenceService } from '../scene/PersistenceService';
+import { EphemeralStore } from '../scene/EphemeralStore';
 import type { EditorTool } from '../scene/SceneTypes';
 
 export type DebugStats = {
@@ -34,6 +36,7 @@ type EngineOptions = {
   onActiveToolChange?: (tool: EditorTool) => void;
   onSelectionChange?: (ids: ReadonlySet<string>) => void;
   onSceneChange?: () => void;
+  onEphemeralEvent?: (event: any) => void;
 };
 
 export class VttEngine {
@@ -41,6 +44,7 @@ export class VttEngine {
   private container: HTMLElement;
   private camera: Camera;
   private sceneStore: SceneStore;
+  private ephemeralStore: EphemeralStore;
   private stageRoot: Container;
   private worldLayer: Container;
   private gridRenderer: GridRenderer;
@@ -54,6 +58,7 @@ export class VttEngine {
   private fogRenderer: FogRenderer;
   private imageRenderer: ImageRenderer;
   private previewRenderer: EditorPreviewRenderer;
+  private presenceRenderer: PresenceRenderer;
   public editor: EditorController;
   private fogSystem: FogSystem;
   private viewMode: 'gm' | 'player' = 'gm';
@@ -61,6 +66,7 @@ export class VttEngine {
   private mouseWorld: { x: number; y: number } = { x: 0, y: 0 };
 
   private onDebugUpdate?: (stats: DebugStats) => void;
+  private onEphemeralEvent?: (event: any) => void;
 
   private handleWheelBound: (e: WheelEvent) => void;
   private handlePointerDownBound: (e: PointerEvent) => void;
@@ -75,8 +81,10 @@ export class VttEngine {
     this.app = app;
     this.container = options.container;
     this.onDebugUpdate = options.onDebugUpdate;
+    this.onEphemeralEvent = options.onEphemeralEvent;
     this.camera = new Camera();
     this.sceneStore = new SceneStore();
+    this.ephemeralStore = new EphemeralStore();
 
     this.stageRoot = new Container();
     this.stageRoot.name = 'stageRoot';
@@ -110,6 +118,8 @@ export class VttEngine {
     this.previewRenderer = new EditorPreviewRenderer(this.stageRoot);
     this.previewRenderer.getContainer().zIndex = 10;
     this.previewRenderer.setCamera(this.camera);
+    this.presenceRenderer = new PresenceRenderer(this.ephemeralStore);
+    this.stageRoot.addChild(this.presenceRenderer.container);
     this.gridRenderer = new GridRenderer(this.stageRoot);
     this.fogSystem = new FogSystem();
 
@@ -181,6 +191,14 @@ export class VttEngine {
 
   getScene(): SceneStore {
     return this.sceneStore;
+  }
+
+  getEphemeralStore(): EphemeralStore {
+    return this.ephemeralStore;
+  }
+
+  getEditor(): EditorController {
+    return this.editor;
   }
 
   getActiveTool(): EditorTool {
@@ -326,12 +344,29 @@ export class VttEngine {
     return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
   }
 
+  private lastCursorBroadcast = 0;
+
   private handlePointerDown(e: PointerEvent): void {
     if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     (e.currentTarget as HTMLCanvasElement).setPointerCapture?.(e.pointerId);
     const { sx, sy } = this.pointerViewport(e);
     const world = this.camera.screenToWorld(sx, sy);
     this.mouseWorld = world;
+    
+    // Ping on middle click or context menu if we want
+    if (e.button === 2) {
+      this.onEphemeralEvent?.({
+        type: 'PING',
+        x: world.x,
+        y: world.y,
+        color: '#ef4444'
+      });
+      // Also apply locally for immediate feedback
+      this.ephemeralStore.addPing('local', world.x, world.y, '#ef4444');
+      this.presenceRenderer.update();
+      this.renderFrame();
+    }
+
     this.editor.onCanvasPointerDown({
       screenX: sx,
       screenY: sy,
@@ -356,6 +391,21 @@ export class VttEngine {
     const { sx, sy } = this.pointerViewport(e);
     const world = this.camera.screenToWorld(sx, sy);
     this.mouseWorld = world;
+    
+    // Throttle cursor broadcast (could do it in network service, but doing it here is fine)
+    // Actually, just emit and let network throttle if needed, but simple throttle here:
+    const now = Date.now();
+    if (!this.lastCursorBroadcast || now - this.lastCursorBroadcast > 50) {
+      this.lastCursorBroadcast = now;
+      this.onEphemeralEvent?.({
+        type: 'CURSOR',
+        x: world.x,
+        y: world.y,
+        color: '#3b82f6', // Local color (could be configured)
+        name: 'GM', // Could be configured
+      });
+    }
+
     this.editor.onCanvasPointerMove({
       screenX: sx,
       screenY: sy,

@@ -34,7 +34,7 @@ export type SceneChange = {
   affectedIds: ID[];
 };
 
-export type SceneListener = (change: SceneChange) => void;
+export type SceneListener = (change: SceneChange, source: 'local' | 'network') => void;
 
 export type FloorTileInput = {
   gridX: number;
@@ -110,9 +110,9 @@ export class SceneStore {
     return () => this.listeners.delete(listener);
   }
 
-  private emit(kind: SceneChange['kind'], affectedIds: ID[]): void {
+  private emit(kind: SceneChange['kind'], affectedIds: ID[], source: 'local' | 'network' = 'local'): void {
     const change: SceneChange = { scene: this.snapshot(), kind, affectedIds };
-    for (const l of this.listeners) l(change);
+    for (const l of this.listeners) l(change, source);
   }
 
   findFloorByCell(
@@ -585,12 +585,12 @@ export class SceneStore {
   }
 
   /**
-   * Replaces the entire scene with a new one (e.g., loaded from file).
+   * Replaces the entire scene with a new one (e.g., loaded from file or network).
    * Notifies all listeners.
    */
-  replace(newScene: import('./SceneTypes').Scene): void {
+  replace(newScene: import('./SceneTypes').Scene, source: 'local' | 'network' = 'local'): void {
     this.scene = structuredClone(newScene);
-    this.emit('replace', []);
+    this.emit('replace', [], source);
   }
 
   // ── Settings ────────────────────────────────────────────────────────

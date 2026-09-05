@@ -22,6 +22,7 @@ export type EditorControllerOpts = {
   preview: EditorPreviewRenderer;
   onActiveToolChange?: (tool: EditorTool) => void;
   onSelectionChange?: SelectionListener;
+  onEphemeralEvent?: (event: any) => void;
 };
 
 type PanState =
@@ -46,6 +47,7 @@ export class EditorController {
   private activePointerId: number | null = null;
   private _snapTokens = true;
   private _viewMode: 'gm' | 'player' = 'gm';
+  private onEphemeralEvent?: (event: any) => void;
 
   constructor(opts: EditorControllerOpts) {
     this.camera = opts.camera;
@@ -70,6 +72,8 @@ export class EditorController {
     this.registerTool(new ImageTool());
     this.registerTool(new RulerTool());
 
+    this.onEphemeralEvent = opts.onEphemeralEvent;
+    
     this.activeTool = this.tools.get(this.activeToolId)!;
     const selectionRef = this.selection;
     this.ctx = {
@@ -80,6 +84,7 @@ export class EditorController {
       selection: this.selection,
       snapTokens: this._snapTokens,
       viewMode: this._viewMode,
+      onEphemeralEvent: (event) => this.onEphemeralEvent?.(event),
       world: {
         screenToWorld: (sx, sy) => this.camera.screenToWorld(sx, sy),
       },

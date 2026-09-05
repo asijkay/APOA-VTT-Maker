@@ -39,6 +39,7 @@ export class RulerTool implements EditorToolController {
       if (this.dragging) {
         this.dragging = false;
         this.ctx.preview.clear();
+        this.ctx.onEphemeralEvent({ type: 'RULER_REMOVE' });
       }
     }
   }
@@ -57,5 +58,13 @@ export class RulerTool implements EditorToolController {
     const text = `${units} grids\n${Math.round(dist)} px`;
     
     this.ctx.preview.showRuler(this.startX, this.startY, endX, endY, text);
+    this.ctx.onEphemeralEvent({
+      type: 'RULER_UPDATE',
+      startX: this.startX,
+      startY: this.startY,
+      endX,
+      endY,
+      color: '#eab308' // yellow
+    });
   }
 }

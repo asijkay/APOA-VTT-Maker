@@ -9,6 +9,8 @@ import type { EditorTool } from '@/vtt/scene/SceneTypes';
 import type { VttEngine } from '@/vtt/engine/VttEngine';
 import { loadTestRoom } from '@/vtt/scene/TestRooms';
 
+import { NetworkService } from '@/vtt/network/NetworkService';
+
 const DEFAULT_STATS: DebugStats = {
   cameraX: 0,
   cameraY: 0,
@@ -31,11 +33,18 @@ export default function Room() {
   const [viewMode, setViewMode] = useState<'gm' | 'player'>(roleParam === 'gm' ? 'gm' : 'player');
   const [snapTokens, setSnapTokens] = useState(true);
   const engineRef = useRef<VttEngine | null>(null);
+  const networkRef = useRef<NetworkService | null>(null);
+  const [networkStatus, setNetworkStatus] = useState('Disconnected');
 
   const handleDebug = useCallback((s: DebugStats) => { setStats(s); }, []);
   const handleToolChange = useCallback((tool: EditorTool) => { setActiveTool(tool); }, []);
   const handleSelectionChange = useCallback((ids: ReadonlySet<string>) => { setSelectedIds(ids); }, []);
   const handleSceneChange = useCallback(() => { setSceneVersion((v) => v + 1); }, []);
+  const handleEphemeralEvent = useCallback((event: any) => {
+    if (networkRef.current) {
+      networkRef.current.broadcastEphemeral(event);
+    }
+  }, []);
 
   // Sync debug options
   useEffect(() => {
@@ -81,6 +90,20 @@ export default function Room() {
     }
   };
 
+  const handleEngineReady = (engine: VttEngine) => {
+    engineRef.current = engine;
+    
+    // Setup network once engine is ready
+    if (!networkRef.current && roomId) {
+      const store = engine.getScene();
+      const ephemeralStore = engine.getEphemeralStore();
+      const network = new NetworkService(roomId, store, ephemeralStore);
+      network.onStatusChange = (status) => setNetworkStatus(status);
+      network.init();
+      networkRef.current = network;
+    }
+  };
+
   const btnStyle: React.CSSProperties = {
     padding: '3px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 4,
     border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)',
@@ -108,8 +131,28 @@ export default function Room() {
       }}>
         
         {/* Room Info */}
-        <div style={{ marginBottom: 4, color: '#90cdf4', fontWeight: 'bold' }}>
-          Room: {roomId}
+        <div style={{ marginBottom: 2 }}>
+          <span style={{ color: '#90cdf4', fontWeight: 'bold' }}>Room: {roomId}</span>
+        </div>
+        <div style={{ marginBottom: 4, color: '#a0aec0', fontSize: 10 }}>
+          {networkStatus}
+        </div>
+        
+        {/* Invite Links */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+          <button style={btnStyle} onClick={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('role');
+            navigator.clipboard.writeText(url.toString());
+            alert('Player Invite Link Copied!');
+          }}>📋 Player Link</button>
+          
+          <button style={btnStyle} onClick={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('role', 'gm');
+            navigator.clipboard.writeText(url.toString());
+            alert('GM Invite Link Copied!');
+          }}>📋 GM Link</button>
         </div>
 
         {/* View mode */}
@@ -165,7 +208,9 @@ export default function Room() {
         onActiveToolChange={handleToolChange}
         onSelectionChange={handleSelectionChange}
         onSceneChange={handleSceneChange}
+        onEphemeralEvent={handleEphemeralEvent}
         engineRef={engineRef}
+        onEngineReady={handleEngineReady}
       />
 
       {viewMode === 'gm' && engineRef.current && (

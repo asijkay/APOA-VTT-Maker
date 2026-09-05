@@ -8,7 +8,9 @@ type Props = {
   onActiveToolChange?: (tool: EditorTool) => void;
   onSelectionChange?: (ids: ReadonlySet<string>) => void;
   onSceneChange?: () => void;
+  onEphemeralEvent?: (event: any) => void;
   engineRef?: React.MutableRefObject<VttEngine | null>;
+  onEngineReady?: (engine: VttEngine) => void;
 };
 
 export default function VttViewport({
@@ -17,7 +19,9 @@ export default function VttViewport({
   onActiveToolChange,
   onSelectionChange,
   onSceneChange,
+  onEphemeralEvent,
   engineRef: externalEngineRef,
+  onEngineReady,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const internalEngineRef = useRef<VttEngine | null>(null);
@@ -36,6 +40,7 @@ export default function VttViewport({
         onActiveToolChange,
         onSelectionChange,
         onSceneChange,
+        onEphemeralEvent,
       });
       if (disposed) {
         engine.destroy();
@@ -43,6 +48,7 @@ export default function VttViewport({
       }
       getEngineRef().current = engine;
       (window as any).__engine = engine;
+      if (onEngineReady) onEngineReady(engine);
       if (onDebugUpdate) onDebugUpdate(engine.getDebugStats());
     })();
 

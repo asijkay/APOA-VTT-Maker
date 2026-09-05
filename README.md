@@ -1,13 +1,16 @@
-# APOA VTT Maker (v0.3.0)
+# APOA VTT Maker (v0.4.0)
 
 A browser-based Virtual Tabletop (VTT) prototype where map creation and VTT gameplay happen in the same environment.
 
 ## Current Milestone
 
-**Milestone 8: v0.3.0 (Functioning Website)**
-- Restructured the static prototype into a functioning website using `react-router-dom`.
-- Added Landing Page (`/`) and unique Room URLs (`/room/:id`).
-- Laid foundation for WebRTC Peer-to-Peer multiplayer using `peerjs`.
+**Milestone 9: v0.4.0 (Multiplayer Presence & Ephemeral Sync)**
+- Completed PeerJS integration for true Serverless Peer-to-Peer multiplayer.
+- Added **Ephemeral Sync Engine** to synchronize actions that don't belong in the permanent map save.
+- Added Multiplayer Cursors so you can see where players are pointing.
+- Added Map Pinging (middle/right click) for drawing attention.
+- Networked the Ruler Tool so everyone sees what is being measured.
+- Added secure Role Links generation in the Host's control panel.
 
 ---
 

@@ -7,6 +7,16 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.0] - 2026-09-05
+
+### Added
+- **Multiplayer Networking Engine**: Completed PeerJS integration for true Serverless Peer-to-Peer multiplayer.
+- **Ephemeral Sync Engine**: Synchronizes actions that don't belong in the permanent map save (like cursors and pings).
+- **Multiplayer Cursors**: See where players are pointing on the map in real-time.
+- **Map Pinging**: Middle-click or right-click to create an expanding ping animation visible to all players.
+- **Networked Ruler Tool**: The distance measurement tool now broadcasts to all connected players in real-time.
+- **Secure Role Links**: The Host's control panel now generates explicit "Player Links" and "GM Links" for secure invitations.
+
 ## [0.3.0] - 2026-09-04
 
 ### Added
