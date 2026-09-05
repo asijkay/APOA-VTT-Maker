@@ -9,73 +9,6 @@ type Props = {
   sceneVersion: number;
 };
 
-const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  right: 12,
-  top: 12,
-  zIndex: 10,
-  background: 'rgba(18, 22, 28, 0.94)',
-  padding: '12px 14px',
-  borderRadius: 10,
-  border: '1px solid rgba(255, 255, 255, 0.10)',
-  color: '#d6dbe2',
-  fontSize: 12,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 10,
-  backdropFilter: 'blur(8px)',
-  minWidth: 210,
-  maxWidth: 240,
-};
-
-const labelRow: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 3,
-};
-
-const rowBetween: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-};
-
-const inputStyle: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.07)',
-  border: '1px solid rgba(255,255,255,0.15)',
-  borderRadius: 5,
-  color: '#d6dbe2',
-  padding: '3px 7px',
-  fontSize: 12,
-  width: '100%',
-  boxSizing: 'border-box',
-};
-
-const rangeStyle: React.CSSProperties = { width: '100%', accentColor: '#63b3ed' };
-
-const sectionTitle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#90cdf4',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: 2,
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  paddingBottom: 4,
-};
-
-const bigButtonStyle = (active: boolean): React.CSSProperties => ({
-  flex: 1,
-  padding: '5px 0',
-  borderRadius: 6,
-  border: `1px solid ${active ? 'rgba(99,179,237,0.6)' : 'rgba(255,255,255,0.12)'}`,
-  background: active ? 'rgba(99,179,237,0.22)' : 'rgba(255,255,255,0.06)',
-  color: active ? '#90cdf4' : '#a0aec0',
-  cursor: 'pointer',
-  fontSize: 12,
-  fontWeight: 600,
-});
-
 function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
   const [w, setW] = useState(snap.mapWidth.toString());
   const [h, setH] = useState(snap.mapHeight.toString());
@@ -96,27 +29,27 @@ function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
   };
 
   return (
-    <div style={panelStyle}>
-      <div style={sectionTitle}>Map Settings</div>
-      <div style={rowBetween}>
-        <span style={{ color: '#a0aec0', fontSize: 11 }}>Width</span>
+    <div className="properties-panel glass-panel">
+      <h4>Map Settings</h4>
+      <div className="prop-row row-between">
+        <span style={{ color: 'var(--color-text-muted)' }}>Width</span>
         <input
-          type="number" min={1} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
+          type="number" min={1} max={200} step={1} className="prop-input" style={{ width: 60, textAlign: 'right' }}
           value={w}
           onChange={e => setW(e.target.value)}
         />
-        <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
+        <span style={{ color: 'var(--color-text-muted)' }}>cells</span>
       </div>
-      <div style={rowBetween}>
-        <span style={{ color: '#a0aec0', fontSize: 11 }}>Height</span>
+      <div className="prop-row row-between">
+        <span style={{ color: 'var(--color-text-muted)' }}>Height</span>
         <input
-          type="number" min={1} max={200} step={1} style={{ ...inputStyle, width: 60, textAlign: 'right' }}
+          type="number" min={1} max={200} step={1} className="prop-input" style={{ width: 60, textAlign: 'right' }}
           value={h}
           onChange={e => setH(e.target.value)}
         />
-        <span style={{ color: '#718096', fontSize: 11 }}>cells</span>
+        <span style={{ color: 'var(--color-text-muted)' }}>cells</span>
       </div>
-      <button style={{ ...bigButtonStyle(false), width: '100%', marginTop: 8 }} onClick={handleUpdate}>
+      <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={handleUpdate}>
         Update Map
       </button>
     </div>
@@ -128,9 +61,9 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
 
   if (selectedIds.size > 1) {
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Multiple Selected</div>
-        <div style={{ color: '#a0aec0', fontSize: 12 }}>
+      <div className="properties-panel glass-panel">
+        <h4>Multiple Selected</h4>
+        <div style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
           {selectedIds.size} objects selected
         </div>
       </div>
@@ -163,14 +96,14 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
   // ── Wall ─────────────────────────────────────────────────────────────────
   if (wall) {
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Wall</div>
-        <label style={rowBetween}>
+      <div className="properties-panel glass-panel">
+        <h4>Wall</h4>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={wall.blocksVision}
             onChange={e => handleUpdateWall({ blocksVision: e.target.checked })} />
           Blocks Vision
         </label>
-        <label style={rowBetween}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={wall.blocksMovement}
             onChange={e => handleUpdateWall({ blocksMovement: e.target.checked })} />
           Blocks Movement
@@ -182,41 +115,34 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
   // ── Door ─────────────────────────────────────────────────────────────────
   if (door) {
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Door</div>
+      <div className="properties-panel glass-panel">
+        <h4>Door</h4>
 
-        {/* Big open/closed toggle */}
-        <div style={rowBetween}>
-          <button style={bigButtonStyle(door.state === 'closed')}
+        <div className="prop-row row-between">
+          <button className={`btn ${door.state === 'closed' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}
             onClick={() => handleUpdateDoor({ state: 'closed' })}>🚪 Closed</button>
-          <button style={bigButtonStyle(door.state === 'open')}
+          <button className={`btn ${door.state === 'open' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}
             onClick={() => handleUpdateDoor({ state: 'open' })}>↩️ Open</button>
         </div>
 
-        <button style={{
-          ...bigButtonStyle(false),
-          padding: '4px 8px', fontSize: 11, marginTop: 4, opacity: door.state === 'open' ? 1 : 0.5
-        }}
-          onClick={() => handleUpdateDoor({ swingDirection: (door.swingDirection === -1 ? 1 : -1) })}>
-          🔄 Flip Swing Direction
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }}
+          onClick={() => {
+            const w = engine.getScene().findWallById(door.wallId);
+            if (!w) return;
+            handleUpdateDoor({ position: 0.5 });
+          }}>
+          Center on Wall
         </button>
 
-        <div style={labelRow}>
-          <span>Width: {door.width}px</span>
-          <input type="range" min={10} max={200} step={5} style={rangeStyle}
-            value={door.width}
-            onChange={e => handleUpdateDoor({ width: Number(e.target.value) })} />
-        </div>
-
-        <label style={rowBetween}>
+        <label className="prop-row row-between" style={{ marginTop: 8 }}>
           <input type="checkbox" checked={door.locked}
             onChange={e => handleUpdateDoor({ locked: e.target.checked })} />
-          🔒 Locked
+          Locked
         </label>
-        <label style={rowBetween}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={door.hidden}
             onChange={e => handleUpdateDoor({ hidden: e.target.checked })} />
-          👻 Hidden from players
+          Hidden
         </label>
       </div>
     );
@@ -225,18 +151,18 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
   // ── Window ────────────────────────────────────────────────────────────────
   if (win) {
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Window</div>
-        <div style={{ fontSize: 11, color: '#718096' }}>
+      <div className="properties-panel glass-panel">
+        <h4>Window</h4>
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
           Vision &amp; light pass through. Movement blocked.
         </div>
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Width: {win.width}px</span>
-          <input type="range" min={10} max={120} step={5} style={rangeStyle}
+          <input type="range" min={10} max={120} step={5}
             value={win.width}
             onChange={e => handleUpdateWin({ width: Number(e.target.value) })} />
         </div>
-        <div style={{ fontSize: 11, color: '#4a5568' }}>
+        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
           Position: {(win.position * 100).toFixed(0)}% along wall
         </div>
       </div>
@@ -246,21 +172,21 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
   // ── Light ─────────────────────────────────────────────────────────────────
   if (light) {
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Light</div>
-        <div style={labelRow}>
+      <div className="properties-panel glass-panel">
+        <h4>Light</h4>
+        <div className="prop-row">
           <span>Radius: {light.radius}px</span>
-          <input type="range" min={10} max={1000} step={10} style={rangeStyle}
+          <input type="range" min={10} max={1000} step={10}
             value={light.radius}
             onChange={e => handleUpdateLight({ radius: Number(e.target.value) })} />
         </div>
-        <div style={rowBetween}>
+        <div className="prop-row row-between">
           <span>Color</span>
           <input type="color" value={light.color}
             onChange={e => handleUpdateLight({ color: e.target.value })}
             style={{ width: 40, height: 28, border: 'none', background: 'none', cursor: 'pointer' }} />
         </div>
-        <label style={rowBetween}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={light.enabled}
             onChange={e => handleUpdateLight({ enabled: e.target.checked })} />
           Enabled
@@ -288,57 +214,57 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
     };
 
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Token</div>
+      <div className="properties-panel glass-panel">
+        <h4>Token</h4>
 
         {/* Name */}
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Name</span>
-          <input type="text" style={inputStyle}
+          <input type="text" className="prop-input"
             value={token.name ?? ''}
             onChange={e => handleUpdateToken({ name: e.target.value })}
             placeholder="Token name…" />
         </div>
 
         {/* Owner ID */}
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Owner (Peer ID)</span>
-          <input type="text" style={inputStyle}
+          <input type="text" className="prop-input"
             value={token.ownerId ?? ''}
             onChange={e => handleUpdateToken({ ownerId: e.target.value || undefined })}
             placeholder="e.g. peer-12345 (Leave empty for all)" />
         </div>
 
         {/* Portrait image */}
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Portrait</span>
           {token.imageUrl && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <img src={token.imageUrl} alt="portrait"
                 style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }} />
               <button onClick={handleClearImage}
-                style={{ ...inputStyle, width: 'auto', padding: '2px 8px', cursor: 'pointer', color: '#fc8181' }}>
+                className="btn btn-secondary" style={{ color: 'var(--color-danger)' }}>
                 Remove
               </button>
             </div>
           )}
           <input ref={fileInputRef} type="file" accept="image/*"
-            style={{ fontSize: 11, color: '#718096' }}
+            style={{ fontSize: 11, color: 'var(--color-text-muted)' }}
             onChange={handleImageUpload} />
         </div>
 
         {/* Size */}
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Size radius: {token.radius}px</span>
-          <input type="range" min={5} max={100} step={1} style={rangeStyle}
+          <input type="range" min={5} max={100} step={1}
             value={token.radius}
             onChange={e => handleUpdateToken({ radius: Number(e.target.value) })} />
         </div>
 
         {/* Vision */}
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Vision radius: {token.visionRadius}px</span>
-          <input type="range" min={0} max={2000} step={10} style={rangeStyle}
+          <input type="range" min={0} max={2000} step={10}
             value={token.visionRadius}
             onChange={e => handleUpdateToken({ visionRadius: Number(e.target.value) })} />
         </div>
@@ -360,43 +286,43 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
     };
 
     return (
-      <div style={panelStyle}>
-        <div style={sectionTitle}>Image</div>
-        <div style={labelRow}>
+      <div className="properties-panel glass-panel">
+        <h4>Image</h4>
+        <div className="prop-row">
           <span>URL</span>
-          <input type="text" style={inputStyle}
+          <input type="text" className="prop-input"
             value={img.url ?? ''}
             onChange={e => handleUpdateImage({ url: e.target.value })}
             placeholder="https://..." />
         </div>
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Upload</span>
           <input type="file" accept="image/*"
-            style={{ fontSize: 11, color: '#718096' }}
+            style={{ fontSize: 11, color: 'var(--color-text-muted)' }}
             onChange={handleMapImageUpload} />
         </div>
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Width: {img.width}</span>
-          <input type="range" min={100} max={4000} step={50} style={rangeStyle}
+          <input type="range" min={100} max={4000} step={50}
             value={img.width}
             onChange={e => handleUpdateImage({ width: Number(e.target.value) })} />
         </div>
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Height: {img.height}</span>
-          <input type="range" min={100} max={4000} step={50} style={rangeStyle}
+          <input type="range" min={100} max={4000} step={50}
             value={img.height}
             onChange={e => handleUpdateImage({ height: Number(e.target.value) })} />
         </div>
-        <div style={labelRow}>
+        <div className="prop-row">
           <span>Opacity: {img.opacity}</span>
-          <input type="range" min={0.1} max={1} step={0.1} style={rangeStyle}
+          <input type="range" min={0.1} max={1} step={0.1}
             value={img.opacity}
             onChange={e => handleUpdateImage({ opacity: Number(e.target.value) })} />
         </div>
-        <label style={rowBetween}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={img.locked}
             onChange={e => handleUpdateImage({ locked: e.target.checked })} />
-          🔒 Locked
+          Locked
         </label>
       </div>
     );

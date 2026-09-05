@@ -109,50 +109,36 @@ export default function Room() {
     }
   };
 
-  const btnStyle: React.CSSProperties = {
-    padding: '3px 8px', fontSize: 11, cursor: 'pointer', borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)',
-    color: '#d6dbe2', whiteSpace: 'nowrap',
-  };
-  const activeBtn: React.CSSProperties = {
-    ...btnStyle, background: 'rgba(99,179,237,0.25)',
-    borderColor: 'rgba(99,179,237,0.6)', color: '#90cdf4',
-  };
-  const dangerBtn: React.CSSProperties = {
-    ...btnStyle, borderColor: 'rgba(252,129,129,0.4)', color: '#fc8181',
-  };
+
 
   return (
     <div className="app-shell">
       {viewMode === 'gm' && <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />}
 
       {/* Bottom-left control panel */}
-      <div style={{
-        position: 'absolute', bottom: 12, left: 12, zIndex: 10,
-        background: 'rgba(18, 22, 28, 0.90)', padding: 10, borderRadius: 8,
-        border: '1px solid rgba(255, 255, 255, 0.08)', color: '#d6dbe2',
-        fontSize: 12, display: 'flex', flexDirection: 'column', gap: 7,
-        backdropFilter: 'blur(6px)', minWidth: 170,
+      <div className="properties-panel glass-panel" style={{
+        position: 'absolute', bottom: 16, left: 16, top: 'auto', right: 'auto',
+        minWidth: 200, padding: 12, gap: 12
       }}>
         
         {/* Room Info */}
         <div style={{ marginBottom: 2 }}>
-          <span style={{ color: '#90cdf4', fontWeight: 'bold' }}>Room: {roomId}</span>
-        </div>
-        <div style={{ marginBottom: 4, color: '#a0aec0', fontSize: 10 }}>
-          {networkStatus}
+          <span style={{ color: 'var(--color-primary-hover)', fontWeight: 'bold' }}>Room: {roomId}</span>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: 10, marginTop: 4 }}>
+            {networkStatus}
+          </div>
         </div>
         
         {/* Invite Links */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-          <button style={btnStyle} onClick={() => {
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-secondary" style={{ flex: 1, padding: '4px 8px' }} onClick={() => {
             const url = new URL(window.location.href);
             url.searchParams.delete('role');
             navigator.clipboard.writeText(url.toString());
             alert('Player Invite Link Copied!');
           }}>📋 Player Link</button>
           
-          <button style={btnStyle} onClick={() => {
+          <button className="btn btn-secondary" style={{ flex: 1, padding: '4px 8px' }} onClick={() => {
             const url = new URL(window.location.href);
             url.searchParams.set('role', 'gm');
             navigator.clipboard.writeText(url.toString());
@@ -162,7 +148,7 @@ export default function Room() {
 
         {/* View mode */}
         <button
-          style={viewMode === 'gm' ? activeBtn : btnStyle}
+          className={`btn ${viewMode === 'gm' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => {
             const nextMode = viewMode === 'gm' ? 'player' : 'gm';
             if (nextMode === 'player') setActiveTool('select');
@@ -173,39 +159,39 @@ export default function Room() {
         </button>
 
         {/* Save / Load / New */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button style={btnStyle} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
-          <button style={btnStyle} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
-          <button style={dangerBtn} onClick={handleNewScene}>🗑</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
+          <button className="btn btn-secondary" style={{ color: 'var(--color-danger)' }} onClick={handleNewScene}>🗑</button>
         </div>
 
         {/* Snap to grid */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={snapTokens}
             onChange={e => setSnapTokens(e.target.checked)} />
           Snap tokens to grid
         </label>
 
         {/* Debug */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={debugVision}
             onChange={e => setDebugVision(e.target.checked)} />
           Debug Vision
         </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label className="prop-row row-between">
           <input type="checkbox" checked={debugCollision}
             onChange={e => setDebugCollision(e.target.checked)} />
           Debug Collision
         </label>
 
         {/* Test rooms */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Room 1</button>
-          <button style={btnStyle} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Room 2</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Room 1</button>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Room 2</button>
         </div>
 
         {/* Version */}
-        <div style={{ marginTop: 2, color: '#4a5568', fontSize: 10, textAlign: 'right', userSelect: 'none' }}>
+        <div style={{ color: 'var(--color-text-muted)', fontSize: 10, textAlign: 'right', userSelect: 'none' }}>
           {/* @ts-ignore - __APP_VERSION__ is defined by Vite */}
           v{__APP_VERSION__}
         </div>

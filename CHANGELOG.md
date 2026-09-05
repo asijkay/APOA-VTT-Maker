@@ -14,6 +14,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Individual Vision Filtering**: The map viewport dynamically filters Line of Sight, ensuring players only see the vision radius from their own assigned tokens. GMs continue to see all tokens.
 - **Token Owner Assignment**: The GM can now assign tokens to specific players via the Properties Panel by entering their Peer ID.
 - **Player Movement Restrictions**: Players are prevented from selecting or dragging tokens they do not own.
+- **Premium UI Overhaul (Prototype 1 - Phase 2)**: Added a sleek, modern UI with a cohesive design system using dark mode, glassmorphism, and subtle micro-animations.
+- **Lucide Icons**: Replaced plain text labels with modern `lucide-react` iconography for all tools.
+- **Enhanced Properties Panel**: Improved usability of property controls with CSS toggle switches, styled range sliders, and modern layouts.
 
 ## [0.4.1] - 2026-09-05
 
