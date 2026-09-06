@@ -17,6 +17,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Premium UI Overhaul (Prototype 1 - Phase 2)**: Added a sleek, modern UI with a cohesive design system using dark mode, glassmorphism, and subtle micro-animations.
 - **Lucide Icons**: Replaced plain text labels with modern `lucide-react` iconography for all tools.
 - **Enhanced Properties Panel**: Improved usability of property controls with CSS toggle switches, styled range sliders, and modern layouts.
+- **Fog of War Memory (Prototype 1 - Phase 3)**: Implemented exploration memory. Previously seen areas are now shrouded in a darkened, semi-transparent fog instead of pitch black.
+- **Dynamic Object Hiding**: In Player mode, tokens that are outside of the currently active Line of Sight are completely hidden, even if they are in the memory fog. Map layouts (walls, doors) remain visible.
 
 ## [0.4.1] - 2026-09-05
 

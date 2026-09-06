@@ -56,7 +56,7 @@ export class TokenRenderer {
     this.dirty = true;
   }
 
-  update(scene: Scene, camera: Camera): void {
+  update(scene: Scene, camera: Camera, visibleCells: Set<string>, viewMode: 'gm' | 'player'): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -71,15 +71,16 @@ export class TokenRenderer {
     }
 
     if (this.dirty || scene.tokens.length !== this.lastCount) {
-      this.redrawAll(scene, camera);
+      this.redrawAll(scene, camera, visibleCells, viewMode);
       this.lastCount = scene.tokens.length;
       this.dirty = false;
     }
   }
 
-  private redrawAll(scene: Scene, camera: Camera): void {
+  private redrawAll(scene: Scene, camera: Camera, visibleCells: Set<string>, viewMode: 'gm' | 'player'): void {
     this.graphics.clear();
     const zoom = Math.max(0.01, this.lastZoom);
+    const gridSize = scene.gridSize;
 
     // Track active ids to clean up removed tokens
     const activeIds = new Set(scene.tokens.map(t => t.id));
@@ -96,6 +97,21 @@ export class TokenRenderer {
     }
 
     for (const t of scene.tokens) {
+      // Visibility check for players
+      if (viewMode === 'player') {
+        const gx = Math.floor(t.x / gridSize);
+        const gy = Math.floor(t.y / gridSize);
+        const cellKey = `${gx},${gy}`;
+        if (!visibleCells.has(cellKey)) {
+          // Token is outside visible cells, hide it
+          const stale = this.sprites.get(t.id);
+          if (stale) { stale.sprite.visible = false; stale.mask.visible = false; }
+          const label = this.labels.get(t.id);
+          if (label) { label.visible = false; }
+          continue;
+        }
+      }
+
       const sp = camera.worldToScreen(t.x, t.y);
       const rCss = Math.max(1, t.radius * zoom) + this.radiusBleedCssPx;
       const rInt = Math.ceil(rCss);

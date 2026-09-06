@@ -546,7 +546,7 @@ export class VttEngine {
     this.windowRenderer.update(snapshot, this.camera);
     this.doorRenderer.update(snapshot, this.camera);
     this.lightRenderer.update(snapshot, this.camera);
-    this.tokenRenderer.update(snapshot, this.camera);
+    this.tokenRenderer.update(snapshot, this.camera, this.fogSystem.getCurrentlyVisibleCells(), this.viewMode);
     this.visionRenderer.update(this.camera);
     this.fogRenderer.update(this.camera, snapshot.gridSize);
   }
