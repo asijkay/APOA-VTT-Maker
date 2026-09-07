@@ -16,6 +16,7 @@ export class LightRenderer {
     parent.addChild(this.container);
 
     this.graphics = new Graphics();
+    this.graphics.blendMode = 'add';
     this.container.addChild(this.graphics);
   }
 

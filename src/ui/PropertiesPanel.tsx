@@ -12,18 +12,28 @@ type Props = {
 function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
   const [w, setW] = useState(snap.mapWidth.toString());
   const [h, setH] = useState(snap.mapHeight.toString());
+  const [ambientLevel, setAmbientLevel] = useState(snap.ambientLightLevel ?? 1.0);
+  const [ambientColor, setAmbientColor] = useState(snap.ambientLightColor ?? '#ffffff');
 
   useEffect(() => {
     setW(snap.mapWidth.toString());
     setH(snap.mapHeight.toString());
-  }, [snap.mapWidth, snap.mapHeight]);
+    setAmbientLevel(snap.ambientLightLevel ?? 1.0);
+    setAmbientColor(snap.ambientLightColor ?? '#ffffff');
+  }, [snap.mapWidth, snap.mapHeight, snap.ambientLightLevel, snap.ambientLightColor]);
 
   const handleUpdate = () => {
     const nw = Math.max(1, Math.min(200, parseInt(w) || 1));
     const nh = Math.max(1, Math.min(200, parseInt(h) || 1));
-    if (nw !== snap.mapWidth || nh !== snap.mapHeight) {
+    const isMapChanged = nw !== snap.mapWidth || nh !== snap.mapHeight;
+    const isLightChanged = ambientLevel !== snap.ambientLightLevel || ambientColor !== snap.ambientLightColor;
+    
+    if (isMapChanged || isLightChanged) {
       engine.editor.getUndoManager().execute(
-        opUpdateSceneSettings({ mapWidth: nw, mapHeight: nh }, { mapWidth: snap.mapWidth, mapHeight: snap.mapHeight })
+        opUpdateSceneSettings(
+          { mapWidth: nw, mapHeight: nh, ambientLightLevel: ambientLevel, ambientLightColor: ambientColor }, 
+          { mapWidth: snap.mapWidth, mapHeight: snap.mapHeight, ambientLightLevel: snap.ambientLightLevel, ambientLightColor: snap.ambientLightColor }
+        )
       );
     }
   };
@@ -49,7 +59,32 @@ function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
         />
         <span style={{ color: 'var(--color-text-muted)' }}>cells</span>
       </div>
-      <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={handleUpdate}>
+      
+      <div style={{ height: 1, background: 'var(--color-panel-border)', margin: '12px 0' }} />
+      <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: 'var(--color-text)' }}>Global Illumination</h4>
+
+      <div className="prop-row row-between" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+        <div className="row-between">
+          <span style={{ color: 'var(--color-text-muted)' }}>Ambient Level</span>
+          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{Math.round(ambientLevel * 100)}%</span>
+        </div>
+        <input
+          type="range" min={0} max={1} step={0.01} className="prop-input"
+          value={ambientLevel}
+          onChange={e => setAmbientLevel(parseFloat(e.target.value))}
+        />
+      </div>
+
+      <div className="prop-row row-between">
+        <span style={{ color: 'var(--color-text-muted)' }}>Ambient Color</span>
+        <input
+          type="color" className="prop-input" style={{ width: 60, padding: 0 }}
+          value={ambientColor}
+          onChange={e => setAmbientColor(e.target.value)}
+        />
+      </div>
+
+      <button className="btn btn-secondary" style={{ width: '100%', marginTop: 12 }} onClick={handleUpdate}>
         Update Map
       </button>
     </div>

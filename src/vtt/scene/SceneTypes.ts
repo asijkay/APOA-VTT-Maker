@@ -75,6 +75,8 @@ export type Scene = {
   gridSize: number;
   mapWidth: number;
   mapHeight: number;
+  ambientLightLevel?: number; // 0.0 (pitch black) to 1.0 (full daylight)
+  ambientLightColor?: string; // hex color for ambient light
   floors: FloorTile[];
   walls: Wall[];
   doors: Door[];
@@ -98,9 +100,11 @@ export type EditorTool =
 
 export function createEmptyScene(): Scene {
   return {
-    gridSize: 25,
-    mapWidth: 25,
-    mapHeight: 25,
+    gridSize: 50,
+    mapWidth: 40,
+    mapHeight: 40,
+    ambientLightLevel: 1.0,
+    ambientLightColor: '#ffffff',
     floors: [],
     walls: [],
     doors: [],

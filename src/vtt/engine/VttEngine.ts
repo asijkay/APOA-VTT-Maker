@@ -11,6 +11,7 @@ import { WindowRenderer } from '../renderer/WindowRenderer';
 import { FogRenderer } from '../renderer/FogRenderer';
 import { ImageRenderer } from '../renderer/ImageRenderer';
 import { EditorPreviewRenderer } from '../renderer/EditorPreviewRenderer';
+import { AmbientLightRenderer } from '../renderer/AmbientLightRenderer';
 import { PresenceRenderer } from '../renderer/PresenceRenderer';
 import { SceneStore } from '../scene/SceneStore';
 import { ZOOM_STEP } from './CoordinateSystem';
@@ -52,6 +53,7 @@ export class VttEngine {
   private wallRenderer: WallRenderer;
   private doorRenderer: DoorRenderer;
   private windowRenderer: WindowRenderer;
+  private ambientLightRenderer: AmbientLightRenderer;
   private lightRenderer: LightRenderer;
   private tokenRenderer: TokenRenderer;
   private visionRenderer: VisionRenderer;
@@ -108,10 +110,16 @@ export class VttEngine {
     this.windowRenderer.getContainer().zIndex = 55;
     this.doorRenderer = new DoorRenderer(this.stageRoot);
     this.doorRenderer.getContainer().zIndex = 6;
-    this.lightRenderer = new LightRenderer(this.stageRoot);
-    this.lightRenderer.getContainer().zIndex = 7;
+    
     this.tokenRenderer = new TokenRenderer(this.stageRoot);
     this.tokenRenderer.getContainer().zIndex = 8;
+    
+    this.ambientLightRenderer = new AmbientLightRenderer(this.stageRoot);
+    this.ambientLightRenderer.getContainer().zIndex = 8.1;
+    
+    this.lightRenderer = new LightRenderer(this.stageRoot);
+    this.lightRenderer.getContainer().zIndex = 8.2;
+    
     this.visionRenderer = new VisionRenderer(this.stageRoot);
     this.visionRenderer.getContainer().zIndex = 9;
     this.fogRenderer = new FogRenderer(this.stageRoot);
@@ -540,11 +548,16 @@ export class VttEngine {
     const lightResults = computeAllLighting(snapshot);
     this.lightRenderer.setLightResults(lightResults);
     
+    this.ambientLightRenderer.setAmbientLight(snapshot.ambientLightLevel ?? 1.0, snapshot.ambientLightColor ?? '#ffffff');
+    
     this.floorRenderer.update(snapshot, this.camera);
     this.imageRenderer.update(snapshot, this.camera);
     this.wallRenderer.update(snapshot, this.camera);
     this.windowRenderer.update(snapshot, this.camera);
     this.doorRenderer.update(snapshot, this.camera);
+    
+    this.ambientLightRenderer.update(this.camera);
+    
     this.lightRenderer.update(snapshot, this.camera);
     this.tokenRenderer.update(snapshot, this.camera, this.fogSystem.getCurrentlyVisibleCells(), this.viewMode);
     this.visionRenderer.update(this.camera);
@@ -584,6 +597,7 @@ export class VttEngine {
     this.fogRenderer.destroy();
     this.visionRenderer.destroy();
     this.lightRenderer.destroy();
+    this.ambientLightRenderer.destroy();
     this.windowRenderer.destroy();
     this.doorRenderer.destroy();
     this.tokenRenderer.destroy();
