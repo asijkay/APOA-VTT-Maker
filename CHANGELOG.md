@@ -12,6 +12,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - **Global Illumination (Prototype 2 - Phase 1)**: Added an `ambientLightLevel` and `ambientLightColor` setting to the Map Properties. Allows for Day/Night modes that interact dynamically with point lights.
 - **Advanced Selection**: Added marquee / box-select functionality to the Select Tool.
+- **Interaction Hints**: Added a persistent, unobtrusive on-screen overlay explaining panning and zooming mechanics to new users.
+
+### Changed
+- **UX & Aesthetics**: Reorganized the Room panel to reduce clutter, enhanced the visibility of active toolbar icons with primary-colored edge highlights, and brightened muted text elements for better contrast against dark panels.
 
 ### Fixed
 - **Scene Settings Undo/Redo**: Fixed a TypeScript bug in `UndoManager` preventing the map from building correctly on Vercel due to missing ambient light properties.
