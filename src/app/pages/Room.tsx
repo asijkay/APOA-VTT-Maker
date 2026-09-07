@@ -158,11 +158,13 @@ export default function Room() {
           {viewMode === 'gm' ? '👁 GM View' : '🎭 Player View'}
         </button>
 
-        {/* Save / Load / New */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
-          <button className="btn btn-secondary" style={{ color: 'var(--color-danger)' }} onClick={handleNewScene}>🗑</button>
+        <div style={{ marginBottom: 4 }}>
+          <h4 style={{ margin: '0 0 6px 0', fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Scene Controls</h4>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
+            <button className="btn btn-secondary" style={{ color: 'var(--color-danger)' }} onClick={handleNewScene}>🗑 Clear</button>
+          </div>
         </div>
 
         {/* Snap to grid */}
@@ -185,9 +187,12 @@ export default function Room() {
         </label>
 
         {/* Test rooms */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Room 1</button>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Room 2</button>
+        <div style={{ marginTop: 4 }}>
+          <h4 style={{ margin: '0 0 6px 0', fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Load Demos</h4>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Dungeon</button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Tavern</button>
+          </div>
         </div>
 
         {/* Version */}
@@ -215,6 +220,16 @@ export default function Room() {
           sceneVersion={sceneVersion}
         />
       )}
+
+      {/* Interaction Hints */}
+      <div style={{
+        position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+        background: 'rgba(0,0,0,0.6)', padding: '6px 16px', borderRadius: 20,
+        color: 'var(--color-text-muted)', fontSize: 12, pointerEvents: 'none',
+        backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <span style={{ color: '#fff', fontWeight: 500 }}>Space + Drag</span> or <span style={{ color: '#fff', fontWeight: 500 }}>Right-Click</span> to Pan • <span style={{ color: '#fff', fontWeight: 500 }}>Scroll</span> to Zoom
+      </div>
 
       <DebugHud stats={stats} />
     </div>

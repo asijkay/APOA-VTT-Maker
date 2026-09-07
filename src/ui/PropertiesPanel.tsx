@@ -64,7 +64,7 @@ function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
       <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: 'var(--color-text)' }}>Global Illumination</h4>
 
       <div className="prop-row row-between" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
-        <div className="row-between">
+        <div className="prop-row row-between" style={{ paddingBottom: 2 }}>
           <span style={{ color: 'var(--color-text-muted)' }}>Ambient Level</span>
           <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{Math.round(ambientLevel * 100)}%</span>
         </div>

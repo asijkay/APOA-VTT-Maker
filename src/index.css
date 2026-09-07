@@ -12,7 +12,7 @@
   --color-danger-border: rgba(239, 68, 68, 0.5);
   
   --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
+  --color-text-muted: #cbd5e1; /* Brighter for better contrast on dark panel */
   --color-text-active: #ffffff;
   
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -202,6 +202,7 @@ body,
   background: var(--color-primary-transparent);
   color: var(--color-primary-hover);
   border-color: var(--color-primary-border);
+  box-shadow: inset 2px 0 0 var(--color-primary-hover);
 }
 
 .tool-btn.is-active:hover {
