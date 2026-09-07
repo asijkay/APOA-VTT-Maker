@@ -7,6 +7,15 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.6.0] - 2026-09-07
+
+### Added
+- **Global Illumination (Prototype 2 - Phase 1)**: Added an `ambientLightLevel` and `ambientLightColor` setting to the Map Properties. Allows for Day/Night modes that interact dynamically with point lights.
+- **Advanced Selection**: Added marquee / box-select functionality to the Select Tool.
+
+### Fixed
+- **Scene Settings Undo/Redo**: Fixed a TypeScript bug in `UndoManager` preventing the map from building correctly on Vercel due to missing ambient light properties.
+
 ## [0.5.0] - 2026-09-05
 
 ### Added
