@@ -298,8 +298,8 @@ export function opUpdateImage(
 }
 
 export function opUpdateSceneSettings(
-  settings: { gridSize?: number; mapWidth?: number; mapHeight?: number },
-  prevSettings: { gridSize?: number; mapWidth?: number; mapHeight?: number },
+  settings: { gridSize?: number; mapWidth?: number; mapHeight?: number; ambientLightLevel?: number; ambientLightColor?: string },
+  prevSettings: { gridSize?: number; mapWidth?: number; mapHeight?: number; ambientLightLevel?: number; ambientLightColor?: string },
 ): Operation {
   return {
     label: 'Update Scene Settings',

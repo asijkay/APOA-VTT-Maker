@@ -595,7 +595,7 @@ export class SceneStore {
 
   // ── Settings ────────────────────────────────────────────────────────
 
-  updateSceneSettings(settings: { gridSize?: number; mapWidth?: number; mapHeight?: number }): void {
+  updateSceneSettings(settings: { gridSize?: number; mapWidth?: number; mapHeight?: number; ambientLightLevel?: number; ambientLightColor?: string }): void {
     if (settings.gridSize !== undefined) {
       this.scene.gridSize = settings.gridSize;
     }
@@ -604,6 +604,12 @@ export class SceneStore {
     }
     if (settings.mapHeight !== undefined) {
       this.scene.mapHeight = settings.mapHeight;
+    }
+    if (settings.ambientLightLevel !== undefined) {
+      this.scene.ambientLightLevel = settings.ambientLightLevel;
+    }
+    if (settings.ambientLightColor !== undefined) {
+      this.scene.ambientLightColor = settings.ambientLightColor;
     }
     this.emit('update-scene-settings', []);
   }
