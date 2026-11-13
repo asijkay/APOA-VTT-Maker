@@ -31,3 +31,7 @@ playwright.mcp.json
 Develop Virtual Tabletop Application.md
 # TypeScript build caches
 *.tsbuildinfo
+
+# Serena / MCP local setup (machine-specific paths and caches)
+.serena/
+.mcp.json
