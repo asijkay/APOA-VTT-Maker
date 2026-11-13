@@ -36,7 +36,7 @@ export class LightTool implements EditorToolController {
             this.ctx.undoManager.execute({
               label: 'Add Light',
               apply(store) {
-                createdId = store.addLight({ x: e.worldX, y: e.worldY, color: '#FFFFFF', radius: 150 }).id;
+                createdId = store.addLight({ x: e.worldX, y: e.worldY, color: '#FBBF24', radius: 150 }).id;
               },
               inverse(store) { if (createdId) store.removeLight(createdId); },
             });

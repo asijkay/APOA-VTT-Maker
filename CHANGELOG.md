@@ -7,6 +7,85 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.8.0] - 2026-11-13
+
+### Changed: full visual redesign (midnight, slate and tosca)
+- **New palette.** Four colours do the work: Midnight Charcoal `#0F172A`, Dark Slate `#1E293B`, Pure White and Electric Tosca `#2DD4BF`. Three greys support them, and two signals each have one job: rose (danger, offline, monsters) and amber (torchlight, reconnecting). Defined once as CSS variables in `src/index.css`.
+- **Landing page rebuilt**: hero with a sample map, the build-to-play flow, six features, closing call to action. Responsive.
+- **Room UI rebuilt**: grouped toolbar with hover tooltips (name and hotkey), a top bar (room, live status pill, GM badge, GM/Player switch, invite links, Save/Load, menu), a players panel, a "your token" card for players, zoom buttons, and a restyled properties panel. The old floating control panel is gone; its options live in the ··· menu.
+- **The map matches the UI.** Grid, floors, walls, doors, windows, fog, previews and selection are recoloured. Tokens are coloured by owner (yours tosca, another player's soft grey, unowned rose) and show their initial. Lights now glow from their source and fade with distance, still cut off by walls and closed doors, instead of a flat wash.
+- Typography: Cormorant Garamond for headings, Inter for controls (loaded from Google Fonts with system fallbacks).
+- Link buttons show "Copied" inline instead of a blocking `alert()`.
+- Responsive top bar: link buttons collapse to icons and Save/Load move into the menu on narrow windows.
+
+### Added
+- Token panel: hidden-from-players switch, elevation, upload button, and a hint showing whether the owner is online.
+- Delete button on every object's panel (one undoable step); zoom buttons; players panel with each player's token count.
+- A real favicon (the old one pointed at a file that didn't exist).
+
+### Fixed
+- Switching to player view left tokens outside your vision visible until something else redrew them.
+
+### Known limitations
+- `tests/e2e/vtt.spec.ts` targets a UI from before routing existed and no longer matches the app (it was already stale; not touched here).
+- Player names don't exist yet, so players are shown by the token they own (or the start of their id).
+- Fonts load from Google Fonts; offline, the system serif and sans are used.
+
+## [0.7.0] - 2026-11-13
+
+### Security
+- **Map layout is now filtered per player.** Walls, doors, windows, floors, lights and map images are only sent for what is within a player's sight range or was explored before. Nothing about unexplored rooms leaves the host. (A map image is still sent whole once any part of it is seen.)
+- **The host checks where a player moves a token.** A move is clamped to the map and swept against walls and closed doors, so a forged position can't teleport a token through a wall; a large correction resyncs the sender.
+- **Per-connection rate limit** (token bucket; repeat offenders are disconnected) and a **hello timeout** that drops connections that never identify themselves.
+- A player (no GM key) **never claims host**, so a stranger opening the link first can't take over a GM's room.
+
+### Added
+- **Reconnection.** Clients retry with backoff when the host disappears and show a banner while offline. A host whose signalling socket drops re-registers its room. A GM client takes over a vacated room with the last scene it mirrored.
+- **Fog memory lives on the host** per player (persisted across host reloads) and is sent on join, so exploration survives a refresh.
+- **TURN/STUN support** via `VITE_ICE_SERVERS` (JSON) for players behind strict NAT.
+- **ESLint** (`npm run lint`) with typescript-eslint and the React hooks rules; lint now runs in CI.
+
+### Fixed
+- **PropertiesPanel crashed when selecting an object after an empty selection** (hooks were called after early returns).
+- **Selection changes didn't always update the panel** (clear, shift-click toggle, add/remove reused the same Set, so React skipped the update); every selection change now produces a new Set.
+- Cursor labels showed "GM" for everyone; they now show the actual role/player.
+- Token drag deep-copied the whole scene on every collision sub-step; it now uses one shared swept-move that builds the wall list once.
+- Players no longer see GM-only controls (demo loaders).
+
+### Changed
+- Code-split: the landing page no longer loads PixiJS/PeerJS (separate `pixi` and `peer` chunks).
+- Room panel and landing page styling moved from inline styles to CSS classes.
+
+### Known limitations
+- The host's browser tab is still the server; a GM must stay online. (A GM client can take over if they were connected.)
+- `PropertiesPanel.tsx` still has inline styles, and 27 `any` types remain (reported as lint warnings).
+- Diagonal walls remain out of scope per AGENTS.md.
+
+## [0.6.1] - 2026-11-13
+
+### Security
+- **Host-authoritative multiplayer.** Clients no longer overwrite the host's scene. They send deltas and the host decides what to accept: a player may only change the `x`/`y` of tokens they own. Walls, settings, removals, new tokens, ownership and vision changes from a player are dropped, and the sender is resynced. The old whole-scene `SCENE_SYNC` message is gone.
+- **Real GM role.** GM rights now require a secret key (`?role=gm&key=…`, generated by the host and carried only by the GM Link). Editing `?role=gm` in the URL no longer grants anything. Non-GMs can't toggle GM view, and the GM Link, Scene Controls and toolbar are hidden for them.
+- **Per-viewer filtering on the host.** Players are only sent their own tokens plus tokens currently inside their vision. Hidden tokens, secret doors and other players' owner ids never leave the host.
+- **Validation of all network input.** Scenes, deltas and cursor/ping/ruler events are strictly validated (types, ranges, sizes, colors, image URLs; unknown fields dropped). Ephemeral events are stamped with the sender's real peer id, so they can't be spoofed.
+
+### Fixed
+- **Token ownership survives a refresh.** Ownership is bound to a stable per-browser player id (with a secret, so another player can't claim it) instead of the random PeerJS id. The GM picks owners from the connected-player list.
+- **Players joining via link were running the engine in GM mode** (no fog, no ownership filter) until they toggled the view.
+- **Autosave is per room** (`vtt-scene-v1:<room>`), and joined clients no longer autosave the host's scene.
+- The network connection is closed when leaving a room.
+
+### Performance
+- Vision, fog memory and lighting are recomputed only when the scene, view mode or player changes, not every frame. Rendering reads the live scene instead of deep-copying it (including image data) 60 times a second.
+- Scene sync sends only the objects that changed, coalesced to ~30 ms.
+
+### Tooling
+- Tests and the Playwright config are no longer git-ignored; added a GitHub Actions workflow (typecheck, tests, build).
+
+### Known limitations
+- Walls, floors, windows, lights and map images are still sent to players in full (the client draws them from fog memory), so a hostile client can read the map layout.
+- The host's browser tab is the server: if it closes, the room is gone. The GM must open the room first; a player who opens it first becomes the host.
+
 ## [0.6.0] - 2026-09-07
 
 ### Added

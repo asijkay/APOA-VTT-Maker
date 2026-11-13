@@ -22,15 +22,15 @@ export class DoorRenderer {
   private lastCamY = -Infinity;
 
   // Colors
-  private static readonly DOOR_CLOSED_COLOR = 0xa0693a;   // warm oak brown
-  private static readonly DOOR_OPEN_COLOR   = 0xc8925a;   // lighter open-arc
-  private static readonly LOCK_COLOR        = 0xffd166;   // amber lock
-  private static readonly SELECT_COLOR      = 0x00e5ff;   // cyan selection
+  private static readonly DOOR_CLOSED_COLOR = 0x2dd4bf;   // tosca: doors are interactive
+  private static readonly DOOR_OPEN_COLOR   = 0x2dd4bf;   // open-arc
+  private static readonly LOCK_COLOR        = 0xfbbf24;   // amber lock
+  private static readonly SELECT_COLOR      = 0xffffff;   // white selection
   private static readonly HOVER_ALPHA       = 0.85;
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'doorLayer';
+    this.container.label = 'doorLayer';
     parent.addChild(this.container);
     this.graphics = new Graphics();
     this.container.addChild(this.graphics);
@@ -143,7 +143,7 @@ export class DoorRenderer {
     // Door handle dots
     const mx = (sp1.x + sp2.x) / 2;
     const my = (sp1.y + sp2.y) / 2;
-    g.setFillStyle({ color: 0x3d1f06, alpha: 1 });
+    g.setFillStyle({ color: 0x0f172a, alpha: 1 });
     g.circle(mx, my, Math.max(2, thickness * 0.35));
     g.fill();
   }
@@ -213,7 +213,7 @@ export class DoorRenderer {
     g.rect(cx - r * 0.6, cy - r * 0.2, r * 1.2, r * 0.9);
     g.fill();
     // Keyhole
-    g.setFillStyle({ color: 0x3d1f06, alpha: 1 });
+    g.setFillStyle({ color: 0x0f172a, alpha: 1 });
     g.circle(cx, cy + r * 0.15, r * 0.2);
     g.fill();
   }

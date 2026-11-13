@@ -27,7 +27,7 @@ export class FogRenderer {
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'fogLayer';
+    this.container.label = 'fogLayer';
     parent.addChild(this.container);
     this.graphics = new Graphics();
     this.container.addChild(this.graphics);
@@ -109,11 +109,11 @@ export class FogRenderer {
         if (this.revealedCells.has(key)) {
           // Memory fog: dark semi-transparent
           this.graphics.rect(sp.x, sp.y, cellSizePx, cellSizePx);
-          this.graphics.fill({ color: 0x000000, alpha: 0.55 });
+          this.graphics.fill({ color: 0x060a14, alpha: 0.55 });
         } else {
           // Full fog: solid black
           this.graphics.rect(sp.x, sp.y, cellSizePx, cellSizePx);
-          this.graphics.fill({ color: 0x000000, alpha: 0.92 });
+          this.graphics.fill({ color: 0x060a14, alpha: 0.92 });
         }
       }
     }

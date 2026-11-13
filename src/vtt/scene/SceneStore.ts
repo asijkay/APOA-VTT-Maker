@@ -96,13 +96,28 @@ export type LightInput = {
 export class SceneStore {
   private scene: Scene;
   private listeners = new Set<SceneListener>();
+  private revision = 0;
 
   constructor(initial: Scene = createEmptyScene()) {
     this.scene = structuredClone(initial);
   }
 
+  /** Deep copy. Safe to keep or mutate, but O(scene size): don't call per frame. */
   snapshot(): Scene {
     return structuredClone(this.scene);
+  }
+
+  /**
+   * The live scene object, no copy. Read-only by contract: callers must not
+   * mutate it or hold it across a mutation. Use for per-frame rendering.
+   */
+  peek(): Scene {
+    return this.scene;
+  }
+
+  /** Increments on every mutation; lets systems skip work when nothing changed. */
+  getRevision(): number {
+    return this.revision;
   }
 
   subscribe(listener: SceneListener): () => void {
@@ -111,7 +126,15 @@ export class SceneStore {
   }
 
   private emit(kind: SceneChange['kind'], affectedIds: ID[], source: 'local' | 'network' = 'local'): void {
-    const change: SceneChange = { scene: this.snapshot(), kind, affectedIds };
+    this.revision += 1;
+    // The deep copy is lazy: listeners that never read `scene` cost nothing.
+    let copy: Scene | null = null;
+    const copyOnce = () => (copy ??= this.snapshot());
+    const change: SceneChange = {
+      get scene() { return copyOnce(); },
+      kind,
+      affectedIds,
+    };
     for (const l of this.listeners) l(change, source);
   }
 

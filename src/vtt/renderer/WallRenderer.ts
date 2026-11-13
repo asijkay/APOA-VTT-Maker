@@ -19,9 +19,9 @@ export class WallRenderer {
   private dirty: boolean = true;
   private selectionDirty: boolean = true;
 
-  private readonly wallColor = 0xd3d9e1;
+  private readonly wallColor = 0xffffff;
   private readonly wallAlpha = 1.0;
-  private readonly selectColor = 0x6aa9ff;
+  private readonly selectColor = 0x2dd4bf;
   private readonly selectAlpha = 1.0;
   private readonly endpointColor = 0xffffff;
   private readonly endpointAlpha = 1.0;
@@ -31,10 +31,10 @@ export class WallRenderer {
 
   constructor(stage: Container) {
     this.container = new Container();
-    this.container.name = 'walls';
+    this.container.label = 'walls';
     this.container.sortableChildren = true;
     this.wallsContainer = new Container();
-    this.wallsContainer.name = 'walls.segments';
+    this.wallsContainer.label = 'walls.segments';
     this.wallsContainer.zIndex = 0;
     this.graphics = new Graphics();
     this.wallsContainer.addChild(this.graphics);
@@ -107,7 +107,7 @@ export class WallRenderer {
           this.graphics
             .moveTo(p1.x, p1.y)
             .lineTo(p2.x, p2.y)
-            .stroke({ width: 2, color: 0xff0000, alpha: 0.8 });
+            .stroke({ width: 2, color: 0xfb7185, alpha: 0.8 });
         }
       }
     }

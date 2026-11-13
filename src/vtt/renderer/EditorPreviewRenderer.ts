@@ -25,7 +25,7 @@ export class EditorPreviewRenderer {
 
   constructor(stage: Container) {
     this.container = new Container();
-    this.container.name = 'editor.previews';
+    this.container.label = 'editor.previews';
     this.graphics = new Graphics();
     this.container.addChild(this.graphics);
     this.rulerText = new Text({ text: '', style: { fontFamily: 'sans-serif', fontSize: 14, fill: 0xffffff, stroke: { color: 0x000000, width: 3 } } });
@@ -57,17 +57,17 @@ export class EditorPreviewRenderer {
     const wx2 = wx1 + size;
     const wy2 = wy1 + size;
     const r = screenRect(this.cam(), wx1, wy1, wx2, wy2);
-    let color = 0xffe066;
+    let color = 0x2dd4bf;
     let alpha = 0.25;
-    let stroke = 0xffe066;
+    let stroke = 0x2dd4bf;
     if (mode === 'remove') {
-      color = 0xff4d4f;
+      color = 0xfb7185;
       alpha = 0.2;
-      stroke = 0xff4d4f;
+      stroke = 0xfb7185;
     } else if (mode === 'select') {
-      color = 0x9ae6b4;
+      color = 0x2dd4bf;
       alpha = 0.15;
-      stroke = 0x9ae6b4;
+      stroke = 0x2dd4bf;
     }
     this.graphics
       .rect(r.sx, r.sy, r.sw, r.sh)
@@ -85,9 +85,9 @@ export class EditorPreviewRenderer {
       const wy2 = wy1 + size;
       const r = screenRect(this.cam(), wx1, wy1, wx2, wy2);
       const isAdd = c.mode === 'add';
-      const color = isAdd ? 0xffe066 : 0xff4d4f;
+      const color = isAdd ? 0x2dd4bf : 0xfb7185;
       const alpha = isAdd ? 0.25 : 0.22;
-      const stroke = isAdd ? 0xffe066 : 0xff4d4f;
+      const stroke = isAdd ? 0x2dd4bf : 0xfb7185;
       this.graphics
         .rect(r.sx, r.sy, r.sw, r.sh)
         .fill({ color, alpha })
@@ -98,7 +98,7 @@ export class EditorPreviewRenderer {
   showWallSegment(seg: PreviewWallSegment): void {
     this.graphics.clear();
     const cam = this.cam();
-    const color = seg.valid ? 0xffd27a : 0xff5557;
+    const color = seg.valid ? 0x2dd4bf : 0xfb7185;
     const alpha = seg.valid ? 0.9 : 0.7;
     const p1 = cam.worldToScreen(seg.x1, seg.y1);
     const p2 = cam.worldToScreen(seg.x2, seg.y2);
@@ -125,8 +125,8 @@ export class EditorPreviewRenderer {
 
     this.graphics
       .rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y)
-      .fill({ color: 0x63b3ed, alpha: 0.15 })
-      .stroke({ width: 1, color: 0x63b3ed, alpha: 0.8, alignment: 0 });
+      .fill({ color: 0x2dd4bf, alpha: 0.15 })
+      .stroke({ width: 1, color: 0x2dd4bf, alpha: 0.8, alignment: 0 });
   }
 
   showRuler(x1: number, y1: number, x2: number, y2: number, text: string): void {

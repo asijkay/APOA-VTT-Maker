@@ -14,7 +14,7 @@ export class AmbientLightRenderer {
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'ambientLightLayer';
+    this.container.label = 'ambientLightLayer';
     parent.addChild(this.container);
 
     this.graphics = new Graphics();

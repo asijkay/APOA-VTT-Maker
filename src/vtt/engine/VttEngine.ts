@@ -33,6 +33,8 @@ export type DebugStats = {
 
 type EngineOptions = {
   container: HTMLElement;
+  /** Scopes the localStorage autosave to this room. */
+  roomId?: string;
   onDebugUpdate?: (stats: DebugStats) => void;
   onActiveToolChange?: (tool: EditorTool) => void;
   onSelectionChange?: (ids: ReadonlySet<string>) => void;
@@ -64,7 +66,12 @@ export class VttEngine {
   public editor: EditorController;
   private fogSystem: FogSystem;
   private viewMode: 'gm' | 'player' = 'gm';
+  /** Stable player id (not the per-load PeerJS id): what token `ownerId` refers to. */
   private localPeerId: string | null = null;
+  private roomId?: string;
+  private autoSaveEnabled = true;
+  /** Inputs the last vision/fog/lighting pass was computed from; null forces a recompute. */
+  private derivedKey: string | null = null;
   private autoSaveThrottle: ReturnType<typeof setTimeout> | null = null;
   private mouseWorld: { x: number; y: number } = { x: 0, y: 0 };
 
@@ -83,6 +90,7 @@ export class VttEngine {
   private constructor(app: Application, options: EngineOptions) {
     this.app = app;
     this.container = options.container;
+    this.roomId = options.roomId;
     this.onDebugUpdate = options.onDebugUpdate;
     this.onEphemeralEvent = options.onEphemeralEvent;
     this.camera = new Camera();
@@ -90,12 +98,12 @@ export class VttEngine {
     this.ephemeralStore = new EphemeralStore();
 
     this.stageRoot = new Container();
-    this.stageRoot.name = 'stageRoot';
+    this.stageRoot.label = 'stageRoot';
     this.stageRoot.sortableChildren = true;
     this.app.stage.addChild(this.stageRoot);
 
     this.worldLayer = new Container();
-    this.worldLayer.name = 'worldLayer';
+    this.worldLayer.label = 'worldLayer';
     this.worldLayer.zIndex = 1;
     this.worldLayer.sortableChildren = true;
     this.stageRoot.addChild(this.worldLayer);
@@ -180,7 +188,7 @@ export class VttEngine {
     const app = new Application();
     await app.init({
       resizeTo: options.container,
-      background: 0x0b0d10,
+      background: 0x0f172a,
       antialias: true,
       autoDensity: true,
       resolution: window.devicePixelRatio || 1,
@@ -189,7 +197,7 @@ export class VttEngine {
     options.container.appendChild(app.canvas);
     const engine = new VttEngine(app, options);
     // Auto-load previously saved scene
-    const saved = PersistenceService.loadFromLocalStorage();
+    const saved = PersistenceService.loadFromLocalStorage(options.roomId);
     if (saved) engine.loadScene(saved);
     return engine;
   }
@@ -250,6 +258,7 @@ export class VttEngine {
   setViewMode(mode: 'gm' | 'player'): void {
     if (this.viewMode === mode) return;
     this.viewMode = mode;
+    this.derivedKey = null;
     this.fogRenderer.setVisible(mode === 'player');
     this.editor.setViewMode(mode);
     this.renderFrame();
@@ -257,7 +266,18 @@ export class VttEngine {
 
   setLocalPeerId(id: string | null): void {
     this.localPeerId = id;
+    this.derivedKey = null;
     this.editor.setLocalPeerId(id);
+  }
+
+  /**
+   * Cells this player has explored according to the host. `replace` on a fresh sync
+   * (drops our own stale memory), otherwise merged in as the host reports new cells.
+   */
+  mergeFogMemory(cells: Iterable<string>, replace = false): void {
+    if (replace) this.fogSystem.reset();
+    this.fogSystem.mergeRevealed(cells);
+    this.derivedKey = null;
   }
 
   getViewMode(): 'gm' | 'player' {
@@ -297,7 +317,7 @@ export class VttEngine {
     this.sceneStore.replace({
       gridSize: 25, mapWidth: 25, mapHeight: 25, floors: [], walls: [], doors: [], windows: [], lights: [], tokens: [], images: [],
     });
-    PersistenceService.clearLocalStorage();
+    PersistenceService.clearLocalStorage(this.roomId);
   }
 
   getDebugStats(): DebugStats {
@@ -352,6 +372,20 @@ export class VttEngine {
     this.emitDebug();
   }
 
+  /** Zoom around the centre of the viewport (zoom buttons). */
+  zoomBy(factor: number): void {
+    const b = this.camera.getBounds();
+    this.camera.zoomAt(b.viewportWidth / 2, b.viewportHeight / 2, factor);
+    this.applyWorldTransform();
+    this.renderFrame();
+    this.emitDebug();
+  }
+
+  /** Delete the current selection (properties-panel button). */
+  deleteSelection(): boolean {
+    return this.editor.deleteSelection();
+  }
+
   private pointerViewport(e: PointerEvent): { sx: number; sy: number } {
     const canvas = this.getCanvas();
     const rect = canvas.getBoundingClientRect();
@@ -373,10 +407,10 @@ export class VttEngine {
         type: 'PING',
         x: world.x,
         y: world.y,
-        color: '#ef4444'
+        color: '#fb7185'
       });
       // Also apply locally for immediate feedback
-      this.ephemeralStore.addPing('local', world.x, world.y, '#ef4444');
+      this.ephemeralStore.addPing('local', world.x, world.y, '#fb7185');
       this.presenceRenderer.update();
       this.renderFrame();
     }
@@ -415,8 +449,8 @@ export class VttEngine {
         type: 'CURSOR',
         x: world.x,
         y: world.y,
-        color: '#3b82f6', // Local color (could be configured)
-        name: 'GM', // Could be configured
+        color: this.viewMode === 'gm' ? '#2dd4bf' : '#cbd5e1', // GM = tosca, players = soft grey
+        name: this.viewMode === 'gm' ? 'GM' : `Player ${(this.localPeerId ?? '').slice(0, 4)}`.trim(),
       });
     }
 
@@ -516,7 +550,8 @@ export class VttEngine {
   }
 
   private renderFrame(): void {
-    const snapshot = this.sceneStore.snapshot();
+    // peek(): the live scene, no per-frame deep copy (snapshot() would clone every image data-URL at 60fps).
+    const snapshot = this.sceneStore.peek();
     this.gridRenderer.update(this.camera, snapshot.mapWidth, snapshot.mapHeight, snapshot.gridSize);
     const selectionIds = this.editor.getSelection();
     this.tokenRenderer.setSelection(selectionIds);
@@ -524,44 +559,53 @@ export class VttEngine {
     this.doorRenderer.setSelection(selectionIds);
     this.windowRenderer.setSelection(selectionIds);
     this.imageRenderer.setSelection(selectionIds);
-    
-    // Compute vision polygons
-    let visionResults = computeAllVision(snapshot);
-    if (this.viewMode === 'player' && this.localPeerId) {
-      // In player mode, only show vision for tokens owned by this player
-      visionResults = visionResults.filter(v => {
-        const t = snapshot.tokens.find(tok => tok.id === v.tokenId);
-        return t && t.ownerId === this.localPeerId;
-      });
+
+    // Vision, fog memory and lighting depend only on the scene, the view mode and
+    // who we are: not on the camera. Recompute only when one of those changed.
+    const key = `${this.sceneStore.getRevision()}|${this.viewMode}|${this.localPeerId}`;
+    if (key !== this.derivedKey) {
+      this.derivedKey = key;
+      this.recomputeDerived(snapshot);
     }
-    
-    this.visionRenderer.setVisionResults(visionResults);
-    
-    // Update fog system
-    this.fogSystem.update(visionResults, snapshot.gridSize);
-    this.fogRenderer.updateCells(
-      this.fogSystem.getRevealedCells(),
-      this.fogSystem.getCurrentlyVisibleCells(),
-    );
-    
-    // Compute lighting polygons
-    const lightResults = computeAllLighting(snapshot);
-    this.lightRenderer.setLightResults(lightResults);
-    
+
     this.ambientLightRenderer.setAmbientLight(snapshot.ambientLightLevel ?? 1.0, snapshot.ambientLightColor ?? '#ffffff');
-    
+
     this.floorRenderer.update(snapshot, this.camera);
     this.imageRenderer.update(snapshot, this.camera);
     this.wallRenderer.update(snapshot, this.camera);
     this.windowRenderer.update(snapshot, this.camera);
     this.doorRenderer.update(snapshot, this.camera);
-    
+
     this.ambientLightRenderer.update(this.camera);
-    
+
     this.lightRenderer.update(snapshot, this.camera);
-    this.tokenRenderer.update(snapshot, this.camera, this.fogSystem.getCurrentlyVisibleCells(), this.viewMode);
+    this.tokenRenderer.update(snapshot, this.camera, this.fogSystem.getCurrentlyVisibleCells(), this.viewMode, this.localPeerId);
     this.visionRenderer.update(this.camera);
     this.fogRenderer.update(this.camera, snapshot.gridSize);
+  }
+
+  private recomputeDerived(snapshot: import('../scene/SceneTypes').Scene): void {
+    let visionResults = computeAllVision(snapshot);
+    if (this.viewMode === 'player') {
+      // In player mode, only show vision for tokens owned by this player.
+      // (No id yet => no tokens are ours => nothing is visible, rather than everything.)
+      const owned = new Set(
+        this.localPeerId ? snapshot.tokens.filter((t) => t.ownerId === this.localPeerId).map((t) => t.id) : [],
+      );
+      visionResults = visionResults.filter((v) => owned.has(v.tokenId));
+    }
+    this.visionRenderer.setVisionResults(visionResults);
+
+    this.fogSystem.update(visionResults, snapshot.gridSize);
+    this.fogRenderer.updateCells(
+      this.fogSystem.getRevealedCells(),
+      this.fogSystem.getCurrentlyVisibleCells(),
+    );
+
+    this.lightRenderer.setLightResults(computeAllLighting(snapshot));
+
+    // Which tokens are visible, and whose they are (colour), both depend on what we just recomputed.
+    this.tokenRenderer.markDirty();
   }
 
   private emitDebug(): void {
@@ -569,10 +613,20 @@ export class VttEngine {
     this.onDebugUpdate(this.getDebugStats());
   }
 
+  /** Joined clients mirror the host's scene and must not save it over their own map. */
+  setAutoSaveEnabled(enabled: boolean): void {
+    this.autoSaveEnabled = enabled;
+    if (!enabled && this.autoSaveThrottle !== null) {
+      clearTimeout(this.autoSaveThrottle);
+      this.autoSaveThrottle = null;
+    }
+  }
+
   private scheduleAutoSave(): void {
+    if (!this.autoSaveEnabled) return;
     if (this.autoSaveThrottle !== null) clearTimeout(this.autoSaveThrottle);
     this.autoSaveThrottle = setTimeout(() => {
-      PersistenceService.saveToLocalStorage(this.sceneStore.serialize());
+      PersistenceService.saveToLocalStorage(this.sceneStore.serialize(), this.roomId);
       this.autoSaveThrottle = null;
     }, 1000);
   }

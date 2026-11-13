@@ -10,7 +10,7 @@ export class PresenceRenderer {
 
   constructor(private store: EphemeralStore) {
     this.container = new Container();
-    this.container.name = 'PresenceLayer';
+    this.container.label = 'PresenceLayer';
     
     // Z-index presence above other map layers
     this.container.zIndex = 1000;

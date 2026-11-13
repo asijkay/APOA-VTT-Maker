@@ -7,16 +7,16 @@ export class GridRenderer {
   private majorLines: Graphics;
   private axisLines: Graphics;
 
-  private readonly minorColor = 0x2a303a;
-  private readonly minorAlpha = 1.0;
-  private readonly majorColor = 0x4a5568;
+  private readonly minorColor = 0x334155;
+  private readonly minorAlpha = 0.45;
+  private readonly majorColor = 0x334155;
   private readonly majorAlpha = 1.0;
-  private readonly axisColor = 0x7a5cff;
-  private readonly axisAlpha = 0.9;
+  private readonly axisColor = 0x2dd4bf;
+  private readonly axisAlpha = 0.7;
 
   constructor(stage: Container) {
     this.container = new Container();
-    this.container.name = 'grid';
+    this.container.label = 'grid';
     this.container.visible = true;
     this.container.renderable = true;
     this.container.eventMode = 'none';

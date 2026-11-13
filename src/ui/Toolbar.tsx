@@ -1,15 +1,16 @@
+import { Fragment } from 'react';
 import type { EditorTool } from '@/vtt/scene/SceneTypes';
-import { 
-  MousePointer2, 
-  Square, 
-  Eraser, 
-  Minus, 
-  DoorClosed, 
-  AppWindow, 
-  Lightbulb, 
-  User, 
-  Image as ImageIcon, 
-  Ruler 
+import {
+  MousePointer2,
+  Square,
+  Eraser,
+  BrickWall,
+  DoorClosed,
+  AppWindow,
+  Flame,
+  User,
+  Image as ImageIcon,
+  Ruler,
 } from 'lucide-react';
 
 type Props = {
@@ -22,44 +23,53 @@ type ToolSpec = {
   label: string;
   hotkey: string;
   icon: React.ElementType;
-  enabled: boolean;
 };
 
-const TOOLS: ToolSpec[] = [
-  { id: 'select', label: 'Select', hotkey: 'V', icon: MousePointer2, enabled: true },
-  { id: 'floor', label: 'Floor', hotkey: 'F', icon: Square, enabled: true },
-  { id: 'erase-floor', label: 'Erase', hotkey: 'E', icon: Eraser, enabled: true },
-  { id: 'wall', label: 'Wall', hotkey: 'W', icon: Minus, enabled: true },
-  { id: 'door', label: 'Door', hotkey: 'D', icon: DoorClosed, enabled: true },
-  { id: 'window', label: 'Window', hotkey: 'I', icon: AppWindow, enabled: true },
-  { id: 'light', label: 'Light', hotkey: 'L', icon: Lightbulb, enabled: true },
-  { id: 'token', label: 'Token', hotkey: 'T', icon: User, enabled: true },
-  { id: 'image', label: 'Image', hotkey: 'M', icon: ImageIcon, enabled: true },
-  { id: 'ruler', label: 'Ruler', hotkey: 'R', icon: Ruler, enabled: true },
+/** Tools are grouped by what they do; a thin rule separates the groups. */
+const GROUPS: ToolSpec[][] = [
+  [{ id: 'select', label: 'Select', hotkey: 'V', icon: MousePointer2 }],
+  [
+    { id: 'floor', label: 'Floor', hotkey: 'F', icon: Square },
+    { id: 'erase-floor', label: 'Erase floor', hotkey: 'E', icon: Eraser },
+  ],
+  [
+    { id: 'wall', label: 'Wall', hotkey: 'W', icon: BrickWall },
+    { id: 'door', label: 'Door', hotkey: 'D', icon: DoorClosed },
+    { id: 'window', label: 'Window', hotkey: 'I', icon: AppWindow },
+  ],
+  [
+    { id: 'light', label: 'Light', hotkey: 'L', icon: Flame },
+    { id: 'token', label: 'Token', hotkey: 'T', icon: User },
+    { id: 'image', label: 'Map image', hotkey: 'M', icon: ImageIcon },
+  ],
+  [{ id: 'ruler', label: 'Ruler', hotkey: 'R', icon: Ruler }],
 ];
 
 export default function Toolbar({ activeTool, onToolChange }: Props) {
   return (
-    <div className="toolbar glass-panel" role="toolbar" aria-label="Editor tools">
-      {TOOLS.map((t) => {
-        const isActive = t.id === activeTool;
-        const Icon = t.icon;
-        return (
-          <button
-            key={t.id}
-            type="button"
-            className={`tool-btn${isActive ? ' is-active' : ''}${t.enabled ? '' : ' is-disabled'}`}
-            onClick={() => t.enabled && onToolChange(t.id)}
-            aria-pressed={isActive}
-            aria-label={`${t.label}${t.enabled ? '' : ' (coming in later milestone)'}`}
-            disabled={!t.enabled}
-            title={`${t.label} (${t.hotkey})`}
-          >
-            <Icon size={18} strokeWidth={isActive ? 2.5 : 2} className="tool-icon" />
-            <span className="tool-hotkey">{t.hotkey}</span>
-          </button>
-        );
-      })}
-    </div>
+    <nav className="panel toolbar" role="toolbar" aria-label="Editor tools">
+      {GROUPS.map((group, gi) => (
+        <Fragment key={gi}>
+          {gi > 0 && <div className="tool-sep" role="separator" />}
+          {group.map((t) => {
+            const isActive = t.id === activeTool;
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className={`tool-btn${isActive ? ' is-active' : ''}`}
+                onClick={() => onToolChange(t.id)}
+                aria-pressed={isActive}
+                aria-label={`${t.label} (${t.hotkey})`}
+                data-tip={`${t.label} · ${t.hotkey}`}
+              >
+                <Icon size={22} strokeWidth={1.7} aria-hidden="true" />
+              </button>
+            );
+          })}
+        </Fragment>
+      ))}
+    </nav>
   );
 }

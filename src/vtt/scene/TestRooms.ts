@@ -20,7 +20,7 @@ export function loadTestRoom(store: SceneStore, roomId: number) {
     store.addDoor({ wallId: wall.id, position: 0.5, state: 'closed' });
 
     store.addToken({ x: 300, y: 300, radius: 20, visionRadius: 600 });
-    store.addLight({ x: 350, y: 150, radius: 400, color: '#ffcc88' });
+    store.addLight({ x: 350, y: 150, radius: 400, color: '#FBBF24' });
   } else if (roomId === 2) {
     // Corridors and multiple rooms
     store.addWall({ x1: 100, y1: 100, x2: 600, y2: 100 });
@@ -35,7 +35,7 @@ export function loadTestRoom(store: SceneStore, roomId: number) {
     store.addDoor({ wallId: innerWall.id, position: 0.5, state: 'closed' });
 
     store.addToken({ x: 200, y: 250, radius: 20, visionRadius: 800 });
-    store.addLight({ x: 200, y: 250, radius: 200, color: '#88ccff' });
-    store.addLight({ x: 500, y: 250, radius: 200, color: '#ff8888' });
+    store.addLight({ x: 200, y: 250, radius: 200, color: '#2DD4BF' });
+    store.addLight({ x: 500, y: 250, radius: 200, color: '#FBBF24' });
   }
 }

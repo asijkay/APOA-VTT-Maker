@@ -15,7 +15,7 @@ export class VisionRenderer {
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'visionLayer';
+    this.container.label = 'visionLayer';
     parent.addChild(this.container);
 
     this.graphics = new Graphics();
@@ -73,12 +73,12 @@ export class VisionRenderer {
 
       this.graphics.closePath();
       
-      this.graphics.fill({ color: 0xffffff, alpha: 0.15 });
+      this.graphics.fill({ color: 0x2dd4bf, alpha: 0.06 });
       
       if (this.debug) {
         this.graphics.stroke({ width: 2, color: 0xff00ff, alpha: 0.8 });
       } else {
-        this.graphics.stroke({ width: 1, color: 0xffffff, alpha: 0.3 });
+        this.graphics.stroke({ width: 1, color: 0x2dd4bf, alpha: 0.3 });
       }
     }
 

@@ -1,7 +1,7 @@
 import type { EditorToolController, ToolContext, ToolPointerEvent } from '../EditorTool';
 import type { EditorTool } from '../../scene/SceneTypes';
 import { worldToGrid, cellCenter } from '../../engine/CoordinateSystem';
-import { resolveCircleAgainstSceneWalls } from '../../geometry/collision';
+import { moveCircleSwept } from '../../geometry/collision';
 import { opBatch } from '../../scene/UndoManager';
 import type { Operation } from '../../scene/UndoManager';
 
@@ -146,21 +146,12 @@ export class SelectTool implements EditorToolController {
             if (!disableCollision && obj.radius) {
               const currentToken = this.ctx.scene.findTokenById(obj.id);
               if (currentToken) {
-                const dx = targetX - currentToken.x;
-                const dy = targetY - currentToken.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const stepSize = Math.max(5, obj.radius / 2);
-                const steps = Math.ceil(dist / stepSize);
-                tx = currentToken.x; ty = currentToken.y;
-                if (steps > 0) {
-                  const stepX = dx / steps;
-                  const stepY = dy / steps;
-                  for (let i = 0; i < steps; i++) {
-                    tx += stepX; ty += stepY;
-                    const resolved = resolveCircleAgainstSceneWalls(tx, ty, obj.radius, this.ctx.scene.snapshot(), { elevation: 0 });
-                    tx = resolved.x; ty = resolved.y;
-                  }
-                }
+                // One shared, swept move (segments built once, no per-step scene copy).
+                const moved = moveCircleSwept(
+                  { x: currentToken.x, y: currentToken.y }, { x: targetX, y: targetY },
+                  obj.radius, this.ctx.scene.peek(), { elevation: 0 },
+                );
+                tx = moved.x; ty = moved.y;
               }
             }
             this.ctx.scene.updateToken(obj.id, { x: tx, y: ty });

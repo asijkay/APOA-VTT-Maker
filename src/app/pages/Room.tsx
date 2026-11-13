@@ -1,15 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import VttViewport from '@/ui/VttViewport';
 import DebugHud from '@/ui/DebugHud';
 import Toolbar from '@/ui/Toolbar';
 import PropertiesPanel from '@/ui/PropertiesPanel';
+import TopBar from '@/ui/TopBar';
+import PlayersPanel, { MeCard } from '@/ui/PlayersPanel';
+import ZoomControls from '@/ui/ZoomControls';
 import type { DebugStats } from '@/vtt/engine/VttEngine';
 import type { EditorTool } from '@/vtt/scene/SceneTypes';
 import type { VttEngine } from '@/vtt/engine/VttEngine';
 import { loadTestRoom } from '@/vtt/scene/TestRooms';
 
-import { NetworkService } from '@/vtt/network/NetworkService';
+import { NetworkService, type RoleInfo } from '@/vtt/network/NetworkService';
+import { loadIdentity, resolveGmKey } from '@/vtt/network/identity';
+import type { PlayerInfo } from '@/vtt/network/protocol';
 
 const DEFAULT_STATS: DebugStats = {
   cameraX: 0,
@@ -22,7 +27,13 @@ const DEFAULT_STATS: DebugStats = {
 export default function Room() {
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get('role');
+  const wantsGM = searchParams.get('role') === 'gm';
+  const urlKey = searchParams.get('key');
+  const identity = useMemo(() => loadIdentity(), []);
+  const gmKey = useMemo(
+    () => (roomId ? resolveGmKey(roomId, urlKey, wantsGM) : null),
+    [roomId, urlKey, wantsGM],
+  );
   
   const [stats, setStats] = useState<DebugStats>(DEFAULT_STATS);
   const [activeTool, setActiveTool] = useState<EditorTool>('select');
@@ -30,11 +41,15 @@ export default function Room() {
   const [sceneVersion, setSceneVersion] = useState(0);
   const [debugVision, setDebugVision] = useState(false);
   const [debugCollision, setDebugCollision] = useState(false);
-  const [viewMode, setViewMode] = useState<'gm' | 'player'>(roleParam === 'gm' ? 'gm' : 'player');
+  const [viewMode, setViewMode] = useState<'gm' | 'player'>(wantsGM ? 'gm' : 'player');
+  // Whether the host actually granted us GM rights. The URL only says what we asked for.
+  const [canGM, setCanGM] = useState(gmKey !== null);
+  const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [snapTokens, setSnapTokens] = useState(true);
   const engineRef = useRef<VttEngine | null>(null);
   const networkRef = useRef<NetworkService | null>(null);
   const [networkStatus, setNetworkStatus] = useState('Disconnected');
+  const offline = /^(Disconnected|Waiting for the GM|Host not found|Could not reach|Error|Lost contact|Signalling)/.test(networkStatus);
 
   const handleDebug = useCallback((s: DebugStats) => { setStats(s); }, []);
   const handleToolChange = useCallback((tool: EditorTool) => { setActiveTool(tool); }, []);
@@ -93,116 +108,71 @@ export default function Room() {
   const handleEngineReady = (engine: VttEngine) => {
     engineRef.current = engine;
     
+    // The view-mode effect above runs on mount, before the engine exists, so apply the initial mode here.
+    // (Without this a player who joins via link keeps the engine's default 'gm' mode: no fog, no ownership filter.)
+    engine.setViewMode(wantsGM ? 'gm' : 'player');
+    engine.setLocalPeerId(identity.id);
+
     // Setup network once engine is ready
     if (!networkRef.current && roomId) {
-      const store = engine.getScene();
-      const ephemeralStore = engine.getEphemeralStore();
-      const network = new NetworkService(roomId, store, ephemeralStore);
-      network.onStatusChange = (status) => {
-        setNetworkStatus(status);
-        if (network.peer?.id) {
-          engineRef.current?.setLocalPeerId(network.peer.id);
+      const network = new NetworkService({
+        roomId,
+        store: engine.getScene(),
+        ephemeralStore: engine.getEphemeralStore(),
+        identity,
+        gmKey,
+      });
+      network.onStatusChange = setNetworkStatus;
+      network.onPlayersChange = setPlayers;
+      network.onFogMemory = (cells, replace) => engineRef.current?.mergeFogMemory(cells, replace);
+      network.onRoleChange = (role: RoleInfo) => {
+        // Only a holder of the GM key can host, so a host is always a GM; a joined client is GM only if the host says so.
+        const gm = role.isHost ? true : role.isGM;
+        setCanGM(gm);
+        if (!gm) {
+          setViewMode('player');
+          setActiveTool('select');
         }
+        engineRef.current?.setLocalPeerId(role.playerId);
+        // A client mirrors the host's scene; it must not autosave it over its own.
+        engineRef.current?.setAutoSaveEnabled(role.isHost);
       };
       network.init();
       networkRef.current = network;
+      (window as any).__network = network; // debug/e2e hook, like __engine
     }
   };
 
+  // Tear the connection down when leaving the room (and on StrictMode's dev re-mount).
+  useEffect(() => () => {
+    networkRef.current?.destroy();
+    networkRef.current = null;
+  }, []);
 
+  const editing = canGM && viewMode === 'gm';
+  // Live scene data for the side panels (re-read whenever the scene changes).
+  void sceneVersion;
+  const tokens = engineRef.current ? engineRef.current.getScene().peek().tokens : [];
+
+  const playerLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('role');
+    url.searchParams.delete('key'); // never put the GM key in a player link
+    return url.toString();
+  };
+  const gmLink = canGM && gmKey
+    ? () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('role', 'gm');
+        url.searchParams.set('key', gmKey);
+        return url.toString();
+      }
+    : undefined;
 
   return (
     <div className="app-shell">
-      {viewMode === 'gm' && <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />}
-
-      {/* Bottom-left control panel */}
-      <div className="properties-panel glass-panel" style={{
-        position: 'absolute', bottom: 16, left: 16, top: 'auto', right: 'auto',
-        minWidth: 200, padding: 12, gap: 12
-      }}>
-        
-        {/* Room Info */}
-        <div style={{ marginBottom: 2 }}>
-          <span style={{ color: 'var(--color-primary-hover)', fontWeight: 'bold' }}>Room: {roomId}</span>
-          <div style={{ color: 'var(--color-text-muted)', fontSize: 10, marginTop: 4 }}>
-            {networkStatus}
-          </div>
-        </div>
-        
-        {/* Invite Links */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-secondary" style={{ flex: 1, padding: '4px 8px' }} onClick={() => {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('role');
-            navigator.clipboard.writeText(url.toString());
-            alert('Player Invite Link Copied!');
-          }}>📋 Player Link</button>
-          
-          <button className="btn btn-secondary" style={{ flex: 1, padding: '4px 8px' }} onClick={() => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('role', 'gm');
-            navigator.clipboard.writeText(url.toString());
-            alert('GM Invite Link Copied!');
-          }}>📋 GM Link</button>
-        </div>
-
-        {/* View mode */}
-        <button
-          className={`btn ${viewMode === 'gm' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => {
-            const nextMode = viewMode === 'gm' ? 'player' : 'gm';
-            if (nextMode === 'player') setActiveTool('select');
-            setViewMode(nextMode);
-          }}
-        >
-          {viewMode === 'gm' ? '👁 GM View' : '🎭 Player View'}
-        </button>
-
-        <div style={{ marginBottom: 4 }}>
-          <h4 style={{ margin: '0 0 6px 0', fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Scene Controls</h4>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.saveToFile()}>💾 Save</button>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => engineRef.current?.loadFromFile()}>📂 Load</button>
-            <button className="btn btn-secondary" style={{ color: 'var(--color-danger)' }} onClick={handleNewScene}>🗑 Clear</button>
-          </div>
-        </div>
-
-        {/* Snap to grid */}
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={snapTokens}
-            onChange={e => setSnapTokens(e.target.checked)} />
-          Snap tokens to grid
-        </label>
-
-        {/* Debug */}
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={debugVision}
-            onChange={e => setDebugVision(e.target.checked)} />
-          Debug Vision
-        </label>
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={debugCollision}
-            onChange={e => setDebugCollision(e.target.checked)} />
-          Debug Collision
-        </label>
-
-        {/* Test rooms */}
-        <div style={{ marginTop: 4 }}>
-          <h4 style={{ margin: '0 0 6px 0', fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Load Demos</h4>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 1); }}>Dungeon</button>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), 2); }}>Tavern</button>
-          </div>
-        </div>
-
-        {/* Version */}
-        <div style={{ color: 'var(--color-text-muted)', fontSize: 10, textAlign: 'right', userSelect: 'none' }}>
-          {/* @ts-ignore - __APP_VERSION__ is defined by Vite */}
-          v{__APP_VERSION__}
-        </div>
-      </div>
-
       <VttViewport
+        roomId={roomId}
         onDebugUpdate={handleDebug}
         activeTool={activeTool}
         onActiveToolChange={handleToolChange}
@@ -213,25 +183,62 @@ export default function Room() {
         onEngineReady={handleEngineReady}
       />
 
-      {viewMode === 'gm' && engineRef.current && (
+      {offline && <div className={`net-banner${editing ? '' : ' is-player'}`} role="status">{networkStatus}</div>}
+
+      {editing && <Toolbar activeTool={activeTool} onToolChange={setActiveTool} />}
+
+      <TopBar
+        roomId={roomId ?? ''}
+        status={networkStatus}
+        playerCount={players.length}
+        canGM={canGM}
+        viewMode={viewMode}
+        onViewMode={(mode) => {
+          if (mode === 'player') setActiveTool('select');
+          setViewMode(mode);
+        }}
+        playerLink={playerLink}
+        gmLink={gmLink}
+        identityId={identity.id}
+        version={__APP_VERSION__}
+        onSave={() => engineRef.current?.saveToFile()}
+        onLoad={() => engineRef.current?.loadFromFile()}
+        onClear={handleNewScene}
+        onDemo={(n) => { if (engineRef.current) loadTestRoom(engineRef.current.getScene(), n); }}
+        snapTokens={snapTokens}
+        onSnapTokens={setSnapTokens}
+        debugVision={debugVision}
+        onDebugVision={setDebugVision}
+        debugCollision={debugCollision}
+        onDebugCollision={setDebugCollision}
+      />
+
+      {editing && engineRef.current && (
         <PropertiesPanel
           selectedIds={selectedIds}
           engine={engineRef.current}
           sceneVersion={sceneVersion}
+          players={players}
+          selfId={identity.id}
         />
       )}
 
-      {/* Interaction Hints */}
-      <div style={{
-        position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-        background: 'rgba(0,0,0,0.6)', padding: '6px 16px', borderRadius: 20,
-        color: 'var(--color-text-muted)', fontSize: 12, pointerEvents: 'none',
-        backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)'
-      }}>
-        <span style={{ color: '#fff', fontWeight: 500 }}>Space + Drag</span> or <span style={{ color: '#fff', fontWeight: 500 }}>Right-Click</span> to Pan • <span style={{ color: '#fff', fontWeight: 500 }}>Scroll</span> to Zoom
+      {editing
+        ? <PlayersPanel players={players} selfId={identity.id} tokens={tokens} />
+        : <MeCard selfId={identity.id} tokens={tokens} />}
+
+      <ZoomControls
+        zoom={stats.zoom}
+        onZoomIn={() => engineRef.current?.zoomBy(1.25)}
+        onZoomOut={() => engineRef.current?.zoomBy(1 / 1.25)}
+      />
+
+      <div className="hint-bar">
+        <kbd>Right-drag</kbd> to pan · <kbd>Scroll</kbd> to zoom ·{' '}
+        {editing ? <><kbd>Esc</kbd> cancels the tool</> : <><kbd>Right-click</kbd> pings</>}
       </div>
 
-      <DebugHud stats={stats} />
+      {(debugVision || debugCollision) && <DebugHud stats={stats} />}
     </div>
   );
 }

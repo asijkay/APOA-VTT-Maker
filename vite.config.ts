@@ -19,6 +19,16 @@ export default defineConfig({
     },
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs'],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          pixi: ['pixi.js'],
+          peer: ['peerjs'],
+        },
+      },
+    },
+  },
   server: {
     host: true,
     port: 5173,

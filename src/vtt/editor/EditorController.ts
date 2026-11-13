@@ -326,6 +326,57 @@ export class EditorController {
     this.pan = { active: false };
   }
 
+  /** Deletes everything currently selected (walls, tokens, doors, lights, windows, unlocked images) as one undoable step. */
+  deleteSelection(): boolean {
+    if (this._viewMode === 'player') return false;
+    const selectedIds = this.selection.get();
+    if (selectedIds.size === 0) return false;
+    const ops = [];
+    for (const sel of selectedIds) {
+      const wall = this.scene.findWallById(sel);
+      if (wall) {
+        const { id: _id, ...data } = wall;
+        ops.push(opRemoveWall(sel, data));
+        continue;
+      }
+      const token = this.scene.findTokenById(sel);
+      if (token) {
+        const { id: _id, ...data } = token;
+        ops.push(opRemoveToken(sel, data));
+        continue;
+      }
+      const door = this.scene.findDoorById(sel);
+      if (door) {
+        const { id: _id, ...data } = door;
+        ops.push(opRemoveDoor(sel, data));
+        continue;
+      }
+      const light = this.scene.findLightById(sel);
+      if (light) {
+        const { id: _id, ...data } = light;
+        ops.push(opRemoveLight(sel, data));
+        continue;
+      }
+      const win = this.scene.findWindowById(sel);
+      if (win) {
+        const { id: _id, ...data } = win;
+        ops.push(opRemoveWindow(sel, data));
+        continue;
+      }
+      const img = this.scene.findImageById(sel);
+      if (img && !img.locked) {
+        const { id: _id, ...data } = img;
+        ops.push(opRemoveImage(sel, data));
+        continue;
+      }
+    }
+
+    if (ops.length === 0) return false;
+    this.undoManager.execute(ops.length === 1 ? ops[0] : opBatch('Delete Objects', ops));
+    this.selection.clear();
+    return true;
+  }
+
   private handleKeyDown(e: KeyboardEvent): void {
     if (e.repeat) return;
     if (e.code === 'Space') {
@@ -340,53 +391,8 @@ export class EditorController {
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (this._viewMode === 'player') return;
       
-      const selectedIds = this.selection.get();
-      if (selectedIds.size > 0) {
-        const ops = [];
-        for (const sel of selectedIds) {
-          const wall = this.scene.findWallById(sel);
-          if (wall) {
-            const { id, ...data } = wall;
-            ops.push(opRemoveWall(sel, data));
-            continue;
-          }
-          const token = this.scene.findTokenById(sel);
-          if (token) {
-            const { id, ...data } = token;
-            ops.push(opRemoveToken(sel, data));
-            continue;
-          }
-          const door = this.scene.findDoorById(sel);
-          if (door) {
-            const { id, ...data } = door;
-            ops.push(opRemoveDoor(sel, data));
-            continue;
-          }
-          const light = this.scene.findLightById(sel);
-          if (light) {
-            const { id, ...data } = light;
-            ops.push(opRemoveLight(sel, data));
-            continue;
-          }
-          const win = this.scene.findWindowById(sel);
-          if (win) {
-            const { id, ...data } = win;
-            ops.push(opRemoveWindow(sel, data));
-            continue;
-          }
-          const img = this.scene.findImageById(sel);
-          if (img && !img.locked) {
-            const { id, ...data } = img;
-            ops.push(opRemoveImage(sel, data));
-            continue;
-          }
-        }
-        
-        if (ops.length > 0) {
-          this.undoManager.execute(ops.length === 1 ? ops[0] : opBatch('Delete Objects', ops));
-          this.selection.clear();
-          e.preventDefault();
-        }
+      if (this.selection.get().size > 0) {
+        if (this.deleteSelection()) e.preventDefault();
         return;
       }
     }

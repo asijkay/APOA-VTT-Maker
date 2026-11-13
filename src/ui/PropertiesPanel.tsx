@@ -2,11 +2,15 @@ import type { VttEngine } from '@/vtt/engine/VttEngine';
 import type { Door, Light, Token, Wall, Window as VttWindow, MapImage } from '@/vtt/scene/SceneTypes';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { opUpdateSceneSettings } from '@/vtt/scene/UndoManager';
+import type { PlayerInfo } from '@/vtt/network/protocol';
 
 type Props = {
   selectedIds: ReadonlySet<string>;
   engine: VttEngine;
   sceneVersion: number;
+  /** Connected players, offered as owners for a token. */
+  players?: PlayerInfo[];
+  selfId?: string;
 };
 
 function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
@@ -39,74 +43,68 @@ function MapSettingsPanel({ snap, engine }: { snap: any, engine: any }) {
   };
 
   return (
-    <div className="properties-panel glass-panel">
-      <h4>Map Settings</h4>
-      <div className="prop-row row-between">
-        <span style={{ color: 'var(--color-text-muted)' }}>Width</span>
-        <input
-          type="number" min={1} max={200} step={1} className="prop-input" style={{ width: 60, textAlign: 'right' }}
-          value={w}
-          onChange={e => setW(e.target.value)}
-        />
-        <span style={{ color: 'var(--color-text-muted)' }}>cells</span>
-      </div>
-      <div className="prop-row row-between">
-        <span style={{ color: 'var(--color-text-muted)' }}>Height</span>
-        <input
-          type="number" min={1} max={200} step={1} className="prop-input" style={{ width: 60, textAlign: 'right' }}
-          value={h}
-          onChange={e => setH(e.target.value)}
-        />
-        <span style={{ color: 'var(--color-text-muted)' }}>cells</span>
-      </div>
-      
-      <div style={{ height: 1, background: 'var(--color-panel-border)', margin: '12px 0' }} />
-      <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: 'var(--color-text)' }}>Global Illumination</h4>
+    <aside className="panel properties-panel" aria-label="Map settings">
+      <div className="panel-head"><span className="panel-title">Map</span><span className="panel-sub">nothing selected</span></div>
 
-      <div className="prop-row row-between" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
-        <div className="prop-row row-between" style={{ paddingBottom: 2 }}>
-          <span style={{ color: 'var(--color-text-muted)' }}>Ambient Level</span>
-          <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{Math.round(ambientLevel * 100)}%</span>
-        </div>
-        <input
-          type="range" min={0} max={1} step={0.01} className="prop-input"
-          value={ambientLevel}
-          onChange={e => setAmbientLevel(parseFloat(e.target.value))}
-        />
+      <div className="field-split">
+        <label className="field">Width (cells)
+          <input type="number" min={1} max={200} step={1} className="prop-input" value={w} onChange={e => setW(e.target.value)} />
+        </label>
+        <label className="field">Height (cells)
+          <input type="number" min={1} max={200} step={1} className="prop-input" value={h} onChange={e => setH(e.target.value)} />
+        </label>
       </div>
 
-      <div className="prop-row row-between">
-        <span style={{ color: 'var(--color-text-muted)' }}>Ambient Color</span>
-        <input
-          type="color" className="prop-input" style={{ width: 60, padding: 0 }}
-          value={ambientColor}
-          onChange={e => setAmbientColor(e.target.value)}
-        />
+      <div className="panel-rule" />
+      <div className="label">Global illumination</div>
+
+      <div className="field">
+        <div className="field-between"><span>Ambient level</span><span className="field-value">{Math.round(ambientLevel * 100)}%</span></div>
+        <input type="range" min={0} max={1} step={0.01} value={ambientLevel} onChange={e => setAmbientLevel(parseFloat(e.target.value))} />
       </div>
 
-      <button className="btn btn-secondary" style={{ width: '100%', marginTop: 12 }} onClick={handleUpdate}>
-        Update Map
-      </button>
-    </div>
+      <div className="field-row">
+        <span>Ambient colour</span>
+        <input type="color" className="prop-input" value={ambientColor} onChange={e => setAmbientColor(e.target.value)} />
+      </div>
+
+      <button type="button" className="btn btn-primary btn-block" onClick={handleUpdate}>Update map</button>
+    </aside>
   );
 }
 
-export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: Props) {
+export default function PropertiesPanel({ selectedIds, engine, sceneVersion, players = [], selfId }: Props) {
   void sceneVersion;
+
+  // Hooks must run on every render, before any early return below (the selection can be empty or multiple).
+  const selectedId = Array.from(selectedIds)[0] as string | undefined;
+  const sceneStore = engine.getScene();
+  const handleUpdateWall  = useCallback((p: Partial<Omit<Wall, 'id'>>) => { if (selectedId) sceneStore.updateWall(selectedId, p); },  [sceneStore, selectedId]);
+  const handleUpdateDoor  = useCallback((p: Partial<Omit<Door, 'id'>>) => { if (selectedId) sceneStore.updateDoor(selectedId, p); },  [sceneStore, selectedId]);
+  const handleUpdateLight = useCallback((p: Partial<Omit<Light, 'id'>>) => { if (selectedId) sceneStore.updateLight(selectedId, p); }, [sceneStore, selectedId]);
+  const handleUpdateToken = useCallback((p: Partial<Omit<Token, 'id'>>) => { if (selectedId) sceneStore.updateToken(selectedId, p); }, [sceneStore, selectedId]);
+  const handleUpdateWin   = useCallback((p: Partial<Omit<VttWindow, 'id'>>) => { if (selectedId) sceneStore.updateWindow(selectedId, p); }, [sceneStore, selectedId]);
+  const handleUpdateImage = useCallback((p: Partial<Omit<MapImage, 'id'>>) => { if (selectedId) sceneStore.updateImage(selectedId, p); }, [sceneStore, selectedId]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onDelete = () => { engine.deleteSelection(); };
+  const DeleteButton = ({ label, disabled = false, why }: { label: string; disabled?: boolean; why?: string }) => (
+    <>
+      <div className="panel-rule" />
+      <button type="button" className="btn btn-rose btn-block" onClick={onDelete} disabled={disabled} title={disabled ? why : undefined}>{label}</button>
+      {disabled && why && <span className="field-hint">{why}</span>}
+    </>
+  );
 
   if (selectedIds.size > 1) {
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Multiple Selected</h4>
-        <div style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
-          {selectedIds.size} objects selected
-        </div>
-      </div>
+      <aside className="panel properties-panel" aria-label="Properties">
+        <div className="panel-head"><span className="panel-title">Selection</span><span className="panel-sub">{selectedIds.size} selected</span></div>
+        <p className="panel-sub">Drag to move them together, or delete them all in one step.</p>
+        <DeleteButton label={`Delete ${selectedIds.size} objects`} />
+      </aside>
     );
   }
-
-  const selectedId = Array.from(selectedIds)[0];
-  const sceneStore = engine.getScene();
 
   if (!selectedId) {
     const snap = sceneStore.snapshot();
@@ -119,114 +117,87 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
   const win    = sceneStore.findWindowById(selectedId);
   const img    = sceneStore.findImageById(selectedId);
 
-  const handleUpdateWall  = useCallback((p: Partial<Omit<Wall, 'id'>>) => sceneStore.updateWall(selectedId, p),  [sceneStore, selectedId]);
-  const handleUpdateDoor  = useCallback((p: Partial<Omit<Door, 'id'>>) => sceneStore.updateDoor(selectedId, p),  [sceneStore, selectedId]);
-  const handleUpdateLight = useCallback((p: Partial<Omit<Light, 'id'>>) => sceneStore.updateLight(selectedId, p), [sceneStore, selectedId]);
-  const handleUpdateToken = useCallback((p: Partial<Omit<Token, 'id'>>) => sceneStore.updateToken(selectedId, p), [sceneStore, selectedId]);
-  const handleUpdateWin   = useCallback((p: Partial<Omit<VttWindow, 'id'>>) => sceneStore.updateWindow(selectedId, p), [sceneStore, selectedId]);
-  const handleUpdateImage = useCallback((p: Partial<Omit<MapImage, 'id'>>) => sceneStore.updateImage(selectedId, p), [sceneStore, selectedId]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const Head = ({ title }: { title: string }) => (
+    <div className="panel-head"><span className="panel-title">{title}</span><span className="panel-sub">1 selected</span></div>
+  );
 
   // ── Wall ─────────────────────────────────────────────────────────────────
   if (wall) {
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Wall</h4>
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={wall.blocksVision}
-            onChange={e => handleUpdateWall({ blocksVision: e.target.checked })} />
-          Blocks Vision
+      <aside className="panel properties-panel" aria-label="Properties">
+        <Head title="Wall" />
+        <label className="field-row"><span>Blocks vision</span>
+          <input type="checkbox" className="switch" checked={wall.blocksVision} onChange={e => handleUpdateWall({ blocksVision: e.target.checked })} />
         </label>
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={wall.blocksMovement}
-            onChange={e => handleUpdateWall({ blocksMovement: e.target.checked })} />
-          Blocks Movement
+        <label className="field-row"><span>Blocks movement</span>
+          <input type="checkbox" className="switch" checked={wall.blocksMovement} onChange={e => handleUpdateWall({ blocksMovement: e.target.checked })} />
         </label>
-      </div>
+        <DeleteButton label="Delete wall" />
+      </aside>
     );
   }
 
   // ── Door ─────────────────────────────────────────────────────────────────
   if (door) {
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Door</h4>
-
-        <div className="prop-row row-between">
-          <button className={`btn ${door.state === 'closed' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}
-            onClick={() => handleUpdateDoor({ state: 'closed' })}>🚪 Closed</button>
-          <button className={`btn ${door.state === 'open' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }}
-            onClick={() => handleUpdateDoor({ state: 'open' })}>↩️ Open</button>
+      <aside className="panel properties-panel" aria-label="Properties">
+        <Head title="Door" />
+        <div className="seg" role="group" aria-label="Door state">
+          <button type="button" className={door.state === 'closed' ? 'is-active' : ''} aria-pressed={door.state === 'closed'} onClick={() => handleUpdateDoor({ state: 'closed' })}>Closed</button>
+          <button type="button" className={door.state === 'open' ? 'is-active' : ''} aria-pressed={door.state === 'open'} onClick={() => handleUpdateDoor({ state: 'open' })}>Open</button>
         </div>
-
-        <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }}
+        <button type="button" className="btn btn-block"
           onClick={() => {
             const w = engine.getScene().findWallById(door.wallId);
             if (!w) return;
             handleUpdateDoor({ position: 0.5 });
           }}>
-          Center on Wall
+          Centre on wall
         </button>
-
-        <label className="prop-row row-between" style={{ marginTop: 8 }}>
-          <input type="checkbox" checked={door.locked}
-            onChange={e => handleUpdateDoor({ locked: e.target.checked })} />
-          Locked
+        <label className="field-row"><span>Locked</span>
+          <input type="checkbox" className="switch" checked={door.locked} onChange={e => handleUpdateDoor({ locked: e.target.checked })} />
         </label>
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={door.hidden}
-            onChange={e => handleUpdateDoor({ hidden: e.target.checked })} />
-          Hidden
+        <label className="field-row"><span>Hidden from players</span>
+          <input type="checkbox" className="switch" checked={door.hidden} onChange={e => handleUpdateDoor({ hidden: e.target.checked })} />
         </label>
-      </div>
+        <DeleteButton label="Delete door" />
+      </aside>
     );
   }
 
   // ── Window ────────────────────────────────────────────────────────────────
   if (win) {
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Window</h4>
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-          Vision &amp; light pass through. Movement blocked.
+      <aside className="panel properties-panel" aria-label="Properties">
+        <Head title="Window" />
+        <p className="panel-sub">Sight and light pass through. Movement is blocked.</p>
+        <div className="field">
+          <div className="field-between"><span>Width</span><span className="field-value">{win.width}px</span></div>
+          <input type="range" min={10} max={120} step={5} value={win.width} onChange={e => handleUpdateWin({ width: Number(e.target.value) })} />
         </div>
-        <div className="prop-row">
-          <span>Width: {win.width}px</span>
-          <input type="range" min={10} max={120} step={5}
-            value={win.width}
-            onChange={e => handleUpdateWin({ width: Number(e.target.value) })} />
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-          Position: {(win.position * 100).toFixed(0)}% along wall
-        </div>
-      </div>
+        <div className="field-hint">{(win.position * 100).toFixed(0)}% along the wall</div>
+        <DeleteButton label="Delete window" />
+      </aside>
     );
   }
 
   // ── Light ─────────────────────────────────────────────────────────────────
   if (light) {
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Light</h4>
-        <div className="prop-row">
-          <span>Radius: {light.radius}px</span>
-          <input type="range" min={10} max={1000} step={10}
-            value={light.radius}
-            onChange={e => handleUpdateLight({ radius: Number(e.target.value) })} />
+      <aside className="panel properties-panel" aria-label="Properties">
+        <Head title="Light" />
+        <div className="field">
+          <div className="field-between"><span>Radius</span><span className="field-value">{light.radius}px</span></div>
+          <input type="range" min={10} max={1000} step={10} value={light.radius} onChange={e => handleUpdateLight({ radius: Number(e.target.value) })} />
         </div>
-        <div className="prop-row row-between">
-          <span>Color</span>
-          <input type="color" value={light.color}
-            onChange={e => handleUpdateLight({ color: e.target.value })}
-            style={{ width: 40, height: 28, border: 'none', background: 'none', cursor: 'pointer' }} />
+        <div className="field-row"><span>Colour</span>
+          <input type="color" className="prop-input" value={light.color} onChange={e => handleUpdateLight({ color: e.target.value })} />
         </div>
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={light.enabled}
-            onChange={e => handleUpdateLight({ enabled: e.target.checked })} />
-          Enabled
+        <label className="field-row"><span>Enabled</span>
+          <input type="checkbox" className="switch" checked={light.enabled} onChange={e => handleUpdateLight({ enabled: e.target.checked })} />
         </label>
-      </div>
+        <DeleteButton label="Delete light" />
+      </aside>
     );
   }
 
@@ -248,62 +219,64 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const ownerOnline = !!token.ownerId && (token.ownerId === selfId || players.some(p => p.id === token.ownerId));
+    const ownerHint = !token.ownerId
+      ? 'No owner: only the GM can move it'
+      : ownerOnline ? 'That player is online' : 'That player is not connected right now';
+
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Token</h4>
+      <aside className="panel properties-panel" aria-label="Properties">
+        <Head title="Token" />
 
-        {/* Name */}
-        <div className="prop-row">
-          <span>Name</span>
-          <input type="text" className="prop-input"
-            value={token.name ?? ''}
-            onChange={e => handleUpdateToken({ name: e.target.value })}
-            placeholder="Token name…" />
-        </div>
+        <label className="field">Name
+          <input type="text" className="prop-input" value={token.name ?? ''} onChange={e => handleUpdateToken({ name: e.target.value })} placeholder="Token name…" />
+        </label>
 
-        {/* Owner ID */}
-        <div className="prop-row">
-          <span>Owner (Peer ID)</span>
-          <input type="text" className="prop-input"
-            value={token.ownerId ?? ''}
+        <label className="field">Owner
+          <input type="text" className="prop-input" list="vtt-player-ids" value={token.ownerId ?? ''}
             onChange={e => handleUpdateToken({ ownerId: e.target.value || undefined })}
-            placeholder="e.g. peer-12345 (Leave empty for all)" />
+            placeholder="Pick a connected player" />
+          <datalist id="vtt-player-ids">
+            {selfId && <option value={selfId}>you</option>}
+            {players.filter(p => p.id !== selfId).map(p => (
+              <option key={p.id} value={p.id}>{p.isGM ? 'GM' : 'player'}</option>
+            ))}
+          </datalist>
+          <span className={`field-hint${ownerOnline ? ' is-ok' : ''}`}>{ownerHint}</span>
+        </label>
+
+        <div className="field">
+          <div className="field-between"><span>Vision radius</span><span className="field-value">{token.visionRadius}</span></div>
+          <input type="range" min={0} max={2000} step={10} value={token.visionRadius} onChange={e => handleUpdateToken({ visionRadius: Number(e.target.value) })} />
         </div>
 
-        {/* Portrait image */}
-        <div className="prop-row">
+        <div className="field-split">
+          <label className="field">Size
+            <input type="number" min={5} max={100} step={1} className="prop-input" value={token.radius}
+              onChange={e => handleUpdateToken({ radius: Math.max(5, Math.min(100, Number(e.target.value) || 5)) })} />
+          </label>
+          <label className="field">Elevation
+            <input type="number" step={1} className="prop-input" value={token.elevation}
+              onChange={e => handleUpdateToken({ elevation: Number(e.target.value) || 0 })} />
+          </label>
+        </div>
+
+        <label className="field-row"><span>Hidden from players</span>
+          <input type="checkbox" className="switch" checked={!!token.hidden} onChange={e => handleUpdateToken({ hidden: e.target.checked })} />
+        </label>
+
+        <div className="field-row">
           <span>Portrait</span>
-          {token.imageUrl && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <img src={token.imageUrl} alt="portrait"
-                style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' }} />
-              <button onClick={handleClearImage}
-                className="btn btn-secondary" style={{ color: 'var(--color-danger)' }}>
-                Remove
-              </button>
-            </div>
-          )}
-          <input ref={fileInputRef} type="file" accept="image/*"
-            style={{ fontSize: 11, color: 'var(--color-text-muted)' }}
-            onChange={handleImageUpload} />
+          <div className="portrait-row">
+            {token.imageUrl && <img className="portrait" src={token.imageUrl} alt="Token portrait" />}
+            {token.imageUrl && <button type="button" className="btn btn-sm btn-rose" onClick={handleClearImage}>Remove</button>}
+            <button type="button" className="btn btn-sm" onClick={() => fileInputRef.current?.click()}>Upload…</button>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageUpload} />
         </div>
 
-        {/* Size */}
-        <div className="prop-row">
-          <span>Size radius: {token.radius}px</span>
-          <input type="range" min={5} max={100} step={1}
-            value={token.radius}
-            onChange={e => handleUpdateToken({ radius: Number(e.target.value) })} />
-        </div>
-
-        {/* Vision */}
-        <div className="prop-row">
-          <span>Vision radius: {token.visionRadius}px</span>
-          <input type="range" min={0} max={2000} step={10}
-            value={token.visionRadius}
-            onChange={e => handleUpdateToken({ visionRadius: Number(e.target.value) })} />
-        </div>
-      </div>
+        <DeleteButton label="Delete token" />
+      </aside>
     );
   }
 
@@ -321,45 +294,33 @@ export default function PropertiesPanel({ selectedIds, engine, sceneVersion }: P
     };
 
     return (
-      <div className="properties-panel glass-panel">
-        <h4>Image</h4>
-        <div className="prop-row">
-          <span>URL</span>
-          <input type="text" className="prop-input"
-            value={img.url ?? ''}
-            onChange={e => handleUpdateImage({ url: e.target.value })}
-            placeholder="https://..." />
-        </div>
-        <div className="prop-row">
-          <span>Upload</span>
-          <input type="file" accept="image/*"
-            style={{ fontSize: 11, color: 'var(--color-text-muted)' }}
-            onChange={handleMapImageUpload} />
-        </div>
-        <div className="prop-row">
-          <span>Width: {img.width}</span>
-          <input type="range" min={100} max={4000} step={50}
-            value={img.width}
-            onChange={e => handleUpdateImage({ width: Number(e.target.value) })} />
-        </div>
-        <div className="prop-row">
-          <span>Height: {img.height}</span>
-          <input type="range" min={100} max={4000} step={50}
-            value={img.height}
-            onChange={e => handleUpdateImage({ height: Number(e.target.value) })} />
-        </div>
-        <div className="prop-row">
-          <span>Opacity: {img.opacity}</span>
-          <input type="range" min={0.1} max={1} step={0.1}
-            value={img.opacity}
-            onChange={e => handleUpdateImage({ opacity: Number(e.target.value) })} />
-        </div>
-        <label className="prop-row row-between">
-          <input type="checkbox" checked={img.locked}
-            onChange={e => handleUpdateImage({ locked: e.target.checked })} />
-          Locked
+      <aside className="panel properties-panel" aria-label="Properties">
+        <Head title="Map image" />
+        <label className="field">Image URL
+          <input type="text" className="prop-input" value={img.url.startsWith('data:') ? '(uploaded file)' : img.url}
+            readOnly={img.url.startsWith('data:')}
+            onChange={e => handleUpdateImage({ url: e.target.value })} placeholder="https://…" />
         </label>
-      </div>
+        <label className="field">Upload a file
+          <input type="file" accept="image/*" onChange={handleMapImageUpload} />
+        </label>
+        <div className="field">
+          <div className="field-between"><span>Width</span><span className="field-value">{img.width}</span></div>
+          <input type="range" min={100} max={4000} step={50} value={img.width} onChange={e => handleUpdateImage({ width: Number(e.target.value) })} />
+        </div>
+        <div className="field">
+          <div className="field-between"><span>Height</span><span className="field-value">{img.height}</span></div>
+          <input type="range" min={100} max={4000} step={50} value={img.height} onChange={e => handleUpdateImage({ height: Number(e.target.value) })} />
+        </div>
+        <div className="field">
+          <div className="field-between"><span>Opacity</span><span className="field-value">{Math.round(img.opacity * 100)}%</span></div>
+          <input type="range" min={0.1} max={1} step={0.1} value={img.opacity} onChange={e => handleUpdateImage({ opacity: Number(e.target.value) })} />
+        </div>
+        <label className="field-row"><span>Locked</span>
+          <input type="checkbox" className="switch" checked={img.locked} onChange={e => handleUpdateImage({ locked: e.target.checked })} />
+        </label>
+        <DeleteButton label="Delete image" disabled={img.locked} why="Unlock the image to delete it." />
+      </aside>
     );
   }
 

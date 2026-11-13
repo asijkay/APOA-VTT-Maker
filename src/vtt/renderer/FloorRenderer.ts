@@ -17,14 +17,14 @@ export class FloorRenderer {
   private lastCamY: number = -Infinity;
   private dirty: DirtyFlags = { full: true };
 
-  private readonly fillColor = 0x1e6eff;
-  private readonly fillAlpha = 0.62;
+  private readonly fillColor = 0x334155;
+  private readonly fillAlpha = 0.35;
 
   constructor(stage: Container) {
     this.container = new Container();
-    this.container.name = 'floors';
+    this.container.label = 'floors';
     this.floorsContainer = new Container();
-    this.floorsContainer.name = 'floors.tiles';
+    this.floorsContainer.label = 'floors.tiles';
     this.graphics = new Graphics();
     this.floorsContainer.addChild(this.graphics);
     this.container.addChild(this.floorsContainer);

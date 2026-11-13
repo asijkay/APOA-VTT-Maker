@@ -64,7 +64,7 @@ export class RulerTool implements EditorToolController {
       startY: this.startY,
       endX,
       endY,
-      color: '#eab308' // yellow
+      color: '#2dd4bf' // tosca
     });
   }
 }

@@ -1,7 +1,12 @@
 import type { Scene } from './SceneTypes';
 import { createEmptyScene } from './SceneTypes';
 
-const STORAGE_KEY = 'vtt-scene-v1';
+const LEGACY_KEY = 'vtt-scene-v1';
+
+/** One autosave slot per room, so two rooms in one browser never overwrite each other. */
+export function storageKeyFor(roomId?: string): string {
+  return roomId ? `${LEGACY_KEY}:${roomId}` : LEGACY_KEY;
+}
 
 /**
  * Validates and coerces a raw parsed object into a valid Scene.
@@ -29,9 +34,9 @@ export const PersistenceService = {
    * Saves the scene to localStorage. Silently swallows storage errors
    * (private/incognito mode may throw QuotaExceededError).
    */
-  saveToLocalStorage(scene: Scene): void {
+  saveToLocalStorage(scene: Scene, roomId?: string): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(scene));
+      localStorage.setItem(storageKeyFor(roomId), JSON.stringify(scene));
     } catch {
       // Silently ignore storage errors
     }
@@ -41,9 +46,9 @@ export const PersistenceService = {
    * Loads the scene from localStorage. Returns null if nothing is stored
    * or if the stored data is corrupt.
    */
-  loadFromLocalStorage(): Scene | null {
+  loadFromLocalStorage(roomId?: string): Scene | null {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(storageKeyFor(roomId));
       if (!raw) return null;
       return coerceScene(JSON.parse(raw));
     } catch {
@@ -54,9 +59,9 @@ export const PersistenceService = {
   /**
    * Clears the saved scene from localStorage.
    */
-  clearLocalStorage(): void {
+  clearLocalStorage(roomId?: string): void {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKeyFor(roomId));
     } catch {
       // Silently ignore
     }

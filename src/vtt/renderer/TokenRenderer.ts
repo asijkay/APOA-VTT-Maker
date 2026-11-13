@@ -27,15 +27,20 @@ export class TokenRenderer {
   private selectionIds: ReadonlySet<string> = new Set();
   private dirty = true;
 
-  private readonly fillColor = 0xf2a36b;
+  // Colour = who the token belongs to: yours (tosca), another player's (soft grey), nobody's / a monster (rose).
+  private readonly mineColor = 0x2dd4bf;
+  private readonly playerColor = 0xcbd5e1;
+  private readonly npcColor = 0xfb7185;
   private readonly fillAlpha = 0.97;
-  private readonly outlineColor = 0xffffff;
-  private readonly selectColor = 0x6aa9ff;
+  private readonly outlineColor = 0x0f172a;
+  private readonly selectColor = 0xffffff;
+  private readonly letterColor = 0x0f172a;
+  private initials = new Map<string, Text>();
   private readonly radiusBleedCssPx = 1;
 
   constructor(stage: Container) {
     this.container = new Container();
-    this.container.name = 'tokens';
+    this.container.label = 'tokens';
     stage.addChild(this.container);
 
     this.graphics = new Graphics();
@@ -56,7 +61,7 @@ export class TokenRenderer {
     this.dirty = true;
   }
 
-  update(scene: Scene, camera: Camera, visibleCells: Set<string>, viewMode: 'gm' | 'player'): void {
+  update(scene: Scene, camera: Camera, visibleCells: Set<string>, viewMode: 'gm' | 'player', localOwnerId: string | null = null): void {
     const cs = camera.getState();
     const camChanged =
       cs.zoom !== this.lastZoom ||
@@ -71,13 +76,13 @@ export class TokenRenderer {
     }
 
     if (this.dirty || scene.tokens.length !== this.lastCount) {
-      this.redrawAll(scene, camera, visibleCells, viewMode);
+      this.redrawAll(scene, camera, visibleCells, viewMode, localOwnerId);
       this.lastCount = scene.tokens.length;
       this.dirty = false;
     }
   }
 
-  private redrawAll(scene: Scene, camera: Camera, visibleCells: Set<string>, viewMode: 'gm' | 'player'): void {
+  private redrawAll(scene: Scene, camera: Camera, visibleCells: Set<string>, viewMode: 'gm' | 'player', localOwnerId: string | null): void {
     this.graphics.clear();
     const zoom = Math.max(0.01, this.lastZoom);
     const gridSize = scene.gridSize;
@@ -87,6 +92,9 @@ export class TokenRenderer {
 
     for (const [id, label] of this.labels) {
       if (!activeIds.has(id)) { label.destroy(); this.labels.delete(id); }
+    }
+    for (const [id, t] of this.initials) {
+      if (!activeIds.has(id)) { t.destroy(); this.initials.delete(id); }
     }
     for (const [id, pair] of this.sprites) {
       if (!activeIds.has(id)) {
@@ -123,8 +131,8 @@ export class TokenRenderer {
         // Plain colored circle
         this.graphics
           .circle(cx, cy, rInt)
-          .fill({ color: this.fillColor, alpha: this.fillAlpha })
-          .stroke({ width: 1, color: this.outlineColor, alpha: 1, alignment: 0 });
+          .fill({ color: this.colorFor(t, localOwnerId), alpha: this.fillAlpha })
+          .stroke({ width: 2, color: this.outlineColor, alpha: 1, alignment: 0 });
 
         // Hide any stale sprite for this token
         const stale = this.sprites.get(t.id);
@@ -133,7 +141,7 @@ export class TokenRenderer {
         // Outline ring as the circle background
         this.graphics
           .circle(cx, cy, rInt)
-          .fill({ color: 0x1a1a2e, alpha: 0.6 })
+          .fill({ color: 0x0f172a, alpha: 0.7 })
           .stroke({ width: 2, color: this.outlineColor, alpha: 0.9, alignment: 0 });
 
         this.loadOrUpdateSprite(t, cx, cy, rInt);
@@ -146,7 +154,32 @@ export class TokenRenderer {
       }
 
       this.updateLabel(t, cx, cy, rInt, zoom);
+      this.updateInitial(t, cx, cy, rInt);
     }
+  }
+
+  private colorFor(token: Token, localOwnerId: string | null): number {
+    if (!token.ownerId) return this.npcColor;
+    return localOwnerId && token.ownerId === localOwnerId ? this.mineColor : this.playerColor;
+  }
+
+  /** The first letter of the name, inside the circle (skipped for portraits and tiny tokens). */
+  private updateInitial(token: Token, cx: number, cy: number, radius: number): void {
+    const letter = (token.name ?? '').trim().charAt(0).toUpperCase();
+    const show = !!letter && !token.imageUrl && radius >= 9;
+    let t = this.initials.get(token.id);
+    if (!show) { if (t) t.visible = false; return; }
+    if (!t) {
+      t = new Text({ text: letter, style: { fontFamily: "'Cormorant Garamond', Georgia, serif", fontWeight: '700', fill: this.letterColor, fontSize: 24 } });
+      t.anchor.set(0.5);
+      this.labelContainer.addChild(t);
+      this.initials.set(token.id, t);
+    }
+    t.text = letter;
+    t.x = cx;
+    t.y = cy;
+    t.scale.set((radius * 1.15) / 24);
+    t.visible = true;
   }
 
   private loadOrUpdateSprite(token: Token, cx: number, cy: number, radius: number): void {
@@ -207,7 +240,7 @@ export class TokenRenderer {
         style: {
           fontSize: 11,
           fill: 0xffffff,
-          stroke: { color: 0x000000, width: 2 },
+          stroke: { color: 0x0f172a, width: 3 },
           fontFamily: 'Inter, system-ui, sans-serif',
           fontWeight: 'bold',
         },
@@ -228,6 +261,8 @@ export class TokenRenderer {
 
   destroy(): void {
     for (const label of this.labels.values()) label.destroy();
+    for (const t of this.initials.values()) t.destroy();
+    this.initials.clear();
     for (const pair of this.sprites.values()) { pair.sprite.destroy(); pair.mask.destroy(); }
     this.labels.clear();
     this.sprites.clear();

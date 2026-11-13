@@ -117,3 +117,18 @@ describe('SceneStore', () => {
     void vi;
   });
 });
+
+describe('SelectionState', () => {
+  it('hands listeners a new Set on every change (React ignores a same-reference update)', async () => {
+    const { SelectionState } = await import('@/vtt/editor/SelectionState');
+    const sel = new SelectionState();
+    const seen: ReadonlySet<string>[] = [];
+    sel.subscribe((ids) => seen.push(ids));
+    sel.add('a'); sel.add('b'); sel.toggle('a'); sel.remove('b'); sel.setSingle('z'); sel.clear();
+    expect(seen).toHaveLength(6);
+    expect(new Set(seen).size).toBe(6); // all distinct references
+    expect([...seen[1]].sort()).toEqual(['a', 'b']);
+    expect([...seen[2]]).toEqual(['b']);
+    expect(seen[5].size).toBe(0);
+  });
+});

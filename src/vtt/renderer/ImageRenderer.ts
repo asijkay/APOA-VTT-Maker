@@ -15,7 +15,7 @@ export class ImageRenderer {
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'imageLayer';
+    this.container.label = 'imageLayer';
     parent.addChild(this.container);
     
     this.selectionGlow.zIndex = 100;
@@ -83,7 +83,7 @@ export class ImageRenderer {
       sprite.alpha = img.opacity;
       
       if (this.selectionIds.has(img.id)) {
-        this.selectionGlow.setStrokeStyle({ width: 3, color: 0x6aa9ff, alpha: 1 });
+        this.selectionGlow.setStrokeStyle({ width: 3, color: 0x2dd4bf, alpha: 1 });
         this.selectionGlow.rect(
           sp.x - sprite.width / 2 - 2,
           sp.y - sprite.height / 2 - 2,
@@ -107,7 +107,7 @@ export class ImageRenderer {
       if (!sprite.destroyed) {
         sprite.texture = texture;
       }
-    } catch (e) {
+    } catch {
       console.warn("Failed to load map image:", url);
     }
   }

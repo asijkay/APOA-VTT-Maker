@@ -14,7 +14,7 @@ export class WindowRenderer {
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'windowLayer';
+    this.container.label = 'windowLayer';
     parent.addChild(this.container);
     this.graphics = new Graphics();
     this.container.addChild(this.graphics);
@@ -47,8 +47,8 @@ export class WindowRenderer {
     if (!this.dirty) return;
     this.graphics.clear();
 
-    const CYAN = 0x00e5ff;
-    const CYAN_SELECTED = 0x00ff80;
+    const CYAN = 0x2dd4bf;
+    const CYAN_SELECTED = 0xffffff;
 
     for (const win of scene.windows) {
       const wall = scene.walls.find(w => w.id === win.wallId);

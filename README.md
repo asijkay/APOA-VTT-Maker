@@ -1,14 +1,15 @@
-# APOA VTT Maker (v0.5.0)
+# APOA VTT Maker (v0.8.0)
 
 A browser-based Virtual Tabletop (VTT) prototype where map creation and VTT gameplay happen in the same environment.
 
 ## Current Milestone
 
-**Milestone 10: v0.5.0 (Prototype 1 - Token Ownership)**
-- **Token Ownership:** Tokens can now be assigned to specific players (via Peer ID).
-- **Individual Vision:** The viewport dynamically filters Line of Sight so players only see from tokens they own.
-- **Movement Restrictions:** Players are blocked from moving or interacting with unowned tokens.
-- This represents the completion of Phase 1 for Prototype 1.
+**v0.6.0 (Prototype 2 - Global Illumination)**
+- **Multiplayer:** Serverless peer-to-peer rooms via PeerJS (`/room/:roomId`), with GM and Player invite links, live cursors, pings and a shared ruler.
+- **Token Ownership & Individual Vision:** Players only move tokens assigned to them (by Peer ID) and see only through their own tokens.
+- **Fog of War Memory:** Explored areas stay visible in a darkened state; tokens outside live vision are hidden.
+- **Global Illumination:** Ambient light level and color per map (day/night) that interact with point lights.
+- **Marquee select** and an on-screen pan/zoom hint.
 
 ---
 
@@ -43,6 +44,8 @@ Map objects are **semantic game objects**, not pixels.
 | UI Shell | React 18 |
 | Build | Vite |
 | Map Renderer | PixiJS 8 |
+| Multiplayer | PeerJS (WebRTC, no backend) |
+| Routing | React Router 7 |
 
 React handles the toolbar, panels, and dialogs. PixiJS handles everything on the map canvas. The two are kept strictly separate.
 
@@ -61,14 +64,14 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ```bash
 npm run build       # Production build
+npm run lint        # ESLint
 npm run typecheck   # TypeScript type check (no emit)
 npm run test        # Run unit tests (Vitest)
-npm run lint        # ESLint
 ```
 
 ---
 
-## Features (v0.1.1)
+## Features
 
 ### Editor Tools
 
@@ -83,12 +86,13 @@ npm run lint        # ESLint
 | **Light** | Click to place a coloured point light. |
 | **Token** | Click to place a token. |
 | **Image** | Click to place a map image (background art / overlays). |
+| **Ruler** | Click and drag to measure; broadcast to all players. |
 
 ### Navigation
 
 | Action | Input |
 |--------|-------|
-| Pan | Middle-mouse drag |
+| Pan | Right-click drag |
 | Zoom | Scroll wheel (centred on cursor) |
 
 ### Vision & Lighting
@@ -161,7 +165,9 @@ src/
 1. **Scene state is separate from rendering.** `SceneStore` is the single source of truth; renderers read from it each frame.
 2. **Map objects are semantic.** A door's open/closed state is game data, not a visual hack.
 3. **Coordinate systems are explicit.** World units, grid coordinates, and screen pixels are never mixed implicitly.
-4. **No backend.** Everything runs in the browser. Multiplayer is out of scope for this prototype.
+4. **No backend, host-authoritative.** Everything runs in the browser. Multiplayer is peer-to-peer over WebRTC (PeerJS). The first browser to open a room is the host and owns the truth; clients send deltas that the host validates and authorizes (`network/protocol.ts`), and it sends each viewer only what they may see (`network/viewFilter.ts`). GM rights require the secret key in the GM Link. Each player is sent only the map they've seen, and the host checks every token move against walls.
+
+**Behind strict NAT?** Players need a TURN relay. Set `VITE_ICE_SERVERS` at build time to a JSON array of ICE servers (see `src/vtt/network/peerOptions.ts`).
 5. **Undo/redo is operation-based.** Every mutation has an explicit inverse — no full snapshot diffing.
 
 ---
@@ -170,7 +176,7 @@ src/
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
-### Planned for v0.2.0
+### Not yet done
 - [ ] Diagonal walls
 - [ ] Door/window placement fixes (minimum 1-cell width, correct open-arc direction)
 - [ ] Robust token collision (no jumping over thin walls)
@@ -191,4 +197,4 @@ See [CHANGELOG.md](./CHANGELOG.md) for the full history.
 
 ## Out of Scope (for now)
 
-Authentication · Backend · Database · Multiplayer · WebSockets · Dice roller · Initiative tracker · Character sheets · Spell automation · Hex grids · Curved walls · Freehand caves · Elevation system · Mobile support · Procedural generation · AI generation · Voice/video chat
+Authentication · Backend · Database · WebSockets · Dice roller · Initiative tracker · Character sheets · Spell automation · Hex grids · Curved walls · Freehand caves · Elevation system · Mobile support · Procedural generation · AI generation · Voice/video chat

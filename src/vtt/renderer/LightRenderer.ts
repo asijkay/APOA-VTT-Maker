@@ -1,22 +1,52 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Camera } from '../engine/Camera';
 import type { LightResult } from '../systems/LightingSystem';
 import type { Scene } from '../scene/SceneTypes';
 
+/**
+ * One shared soft radial gradient (white in the middle, fading to nothing at the edge).
+ * Every light is this texture, tinted with the light's colour and scaled to its radius,
+ * so a light glows brightest at its source and fades with distance.
+ */
+let sharedGlow: Texture | null = null;
+function glowTexture(): Texture {
+  if (sharedGlow) return sharedGlow;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,0.85)');
+  g.addColorStop(0.45, 'rgba(255,255,255,0.32)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  sharedGlow = Texture.from(canvas);
+  return sharedGlow;
+}
+
+type LightSprite = { sprite: Sprite; mask: Graphics };
+
 export class LightRenderer {
   private container: Container;
+  /** Selection rings only. */
   private graphics: Graphics;
+  private glowLayer: Container;
+  private glows = new Map<string, LightSprite>();
   private lightResults: LightResult[] = [];
   private selectionIds: ReadonlySet<string> = new Set();
   private dirty = true;
 
   constructor(parent: Container) {
     this.container = new Container();
-    this.container.name = 'lightLayer';
+    this.container.label = 'lightLayer';
     parent.addChild(this.container);
 
+    this.glowLayer = new Container();
+    this.container.addChild(this.glowLayer);
+
     this.graphics = new Graphics();
-    this.graphics.blendMode = 'add';
     this.container.addChild(this.graphics);
   }
 
@@ -49,7 +79,7 @@ export class LightRenderer {
       cs.zoom !== this.lastZoom ||
       Math.abs(cs.x - this.lastCamX) > 0.05 ||
       Math.abs(cs.y - this.lastCamY) > 0.05;
-      
+
     if (camChanged) {
       this.lastZoom = cs.zoom;
       this.lastCamX = cs.x;
@@ -60,38 +90,62 @@ export class LightRenderer {
     if (!this.dirty) return;
     this.graphics.clear();
 
-    // Render each light as a colored radial gradient/polygon
+    const lightsById = new Map(scene.lights.map((l) => [l.id, l]));
+    const live = new Set<string>();
+
     for (const result of this.lightResults) {
-      if (result.polygon.length < 3) continue;
+      const light = lightsById.get(result.lightId);
+      if (!light || result.polygon.length < 3) continue;
+      live.add(result.lightId);
 
-      this.graphics.beginPath();
-      const p0 = camera.worldToScreen(result.polygon[0].x, result.polygon[0].y);
-      this.graphics.moveTo(p0.x, p0.y);
-
-      for (let i = 1; i < result.polygon.length; i++) {
-        const p = camera.worldToScreen(result.polygon[i].x, result.polygon[i].y);
-        this.graphics.lineTo(p.x, p.y);
+      let glow = this.glows.get(result.lightId);
+      if (!glow) {
+        const mask = new Graphics();
+        const sprite = new Sprite(glowTexture());
+        sprite.anchor.set(0.5);
+        sprite.blendMode = 'add';
+        sprite.mask = mask;
+        // The mask must live in the display tree for the stencil to apply.
+        this.glowLayer.addChild(mask);
+        this.glowLayer.addChild(sprite);
+        glow = { sprite, mask };
+        this.glows.set(result.lightId, glow);
       }
 
-      this.graphics.closePath();
-      
-      // Parse color and create fill with alpha
-      const color = this.parseColor(result.color);
-      this.graphics.fill({ color, alpha: 0.3 });
-      
-      // Optional: stroke with thin line of same color
-      this.graphics.stroke({ width: 1, color, alpha: 0.5 });
+      // Walls and closed doors cut the light: the glow is clipped to the visibility polygon.
+      glow.mask.clear();
+      const p0 = camera.worldToScreen(result.polygon[0].x, result.polygon[0].y);
+      glow.mask.moveTo(p0.x, p0.y);
+      for (let i = 1; i < result.polygon.length; i++) {
+        const p = camera.worldToScreen(result.polygon[i].x, result.polygon[i].y);
+        glow.mask.lineTo(p.x, p.y);
+      }
+      glow.mask.closePath();
+      glow.mask.fill({ color: 0xffffff });
 
-      // Draw selection highlight
+      const centre = camera.worldToScreen(light.x, light.y);
+      const diameter = result.radius * 2 * cs.zoom;
+      glow.sprite.x = centre.x;
+      glow.sprite.y = centre.y;
+      glow.sprite.width = diameter;
+      glow.sprite.height = diameter;
+      glow.sprite.tint = this.parseColor(result.color);
+      glow.sprite.alpha = 0.55;
+
       if (this.selectionIds.has(result.lightId)) {
-        const light = scene.lights.find(l => l.id === result.lightId);
-        if (light) {
-          const sp = camera.worldToScreen(light.x, light.y);
-          this.graphics.setStrokeStyle({ width: 2, color: 0x00FF00 }); // Green highlight
-          this.graphics.beginPath();
-          this.graphics.arc(sp.x, sp.y, 15, 0, Math.PI * 2);
-          this.graphics.stroke();
-        }
+        this.graphics.setStrokeStyle({ width: 2, color: 0x2dd4bf }); // selection highlight
+        this.graphics.beginPath();
+        this.graphics.arc(centre.x, centre.y, 15, 0, Math.PI * 2);
+        this.graphics.stroke();
+      }
+    }
+
+    // Drop the glow of any light that was deleted or switched off.
+    for (const [id, glow] of this.glows) {
+      if (!live.has(id)) {
+        glow.sprite.destroy();
+        glow.mask.destroy();
+        this.glows.delete(id);
       }
     }
 
@@ -99,34 +153,16 @@ export class LightRenderer {
   }
 
   private parseColor(colorStr: string): number {
-    // Handle hex colors
     if (colorStr.startsWith('#')) {
-      return parseInt(colorStr.slice(1), 16);
+      const v = parseInt(colorStr.slice(1), 16);
+      return Number.isFinite(v) ? v : 0xffffff;
     }
-    
-    // Handle named colors (simplified)
-    const namedColors: Record<string, number> = {
-      'red': 0xFF0000,
-      'green': 0x00FF00,
-      'blue': 0x0000FF,
-      'yellow': 0xFFFF00,
-      'orange': 0xFFA500,
-      'purple': 0x800080,
-      'white': 0xFFFFFF,
-      'cyan': 0x00FFFF,
-      'magenta': 0xFF00FF,
-    };
-    
-    const lower = colorStr.toLowerCase();
-    if (namedColors[lower]) {
-      return namedColors[lower];
-    }
-    
-    // Default to white
-    return 0xFFFFFF;
+    return 0xffffff;
   }
 
   destroy(): void {
+    for (const glow of this.glows.values()) { glow.sprite.destroy(); glow.mask.destroy(); }
+    this.glows.clear();
     this.graphics.destroy();
     this.container.destroy();
   }

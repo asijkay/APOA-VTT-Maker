@@ -3,6 +3,7 @@ import { VttEngine, type DebugStats } from '@/vtt/engine/VttEngine';
 import type { EditorTool } from '@/vtt/scene/SceneTypes';
 
 type Props = {
+  roomId?: string;
   onDebugUpdate?: (stats: DebugStats) => void;
   activeTool: EditorTool;
   onActiveToolChange?: (tool: EditorTool) => void;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function VttViewport({
+  roomId,
   onDebugUpdate,
   activeTool,
   onActiveToolChange,
@@ -36,6 +38,7 @@ export default function VttViewport({
     (async () => {
       const engine = await VttEngine.create({
         container: host,
+        roomId,
         onDebugUpdate,
         onActiveToolChange,
         onSelectionChange,
